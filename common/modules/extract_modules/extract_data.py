@@ -96,7 +96,7 @@ def downloading_tracked_entities() -> list:
 
             if program_pager['pageCount'] > 0:
 
-                data_folder = f"results/extracat_module/{orgunit['id']}/{program['id']}"
+                data_folder = f"results/extract_module/{orgunit['id']}/{program['id']}"
                 os.makedirs(data_folder, exist_ok=True)
 
                 for page in range(1, program_pager['pageCount'] + 1):

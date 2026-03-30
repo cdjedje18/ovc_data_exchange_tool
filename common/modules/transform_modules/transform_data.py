@@ -4,119 +4,144 @@ import urllib3
 from common.utils import utils
 import os
 import json
+from common.modules.extract_modules import  extract_data
+
+
+NID_ATTRIBUTE_ID = "ZPKAQj86KBI"
+NID_AJUDA_ATTRIBUTE_ID = "coFfWIjsmyL"
+ID_FAMILY_ATTRIBUTE_ID = "hXpyioqAugh"
+
+
+NID_DATA_ELEMENT_ID = "dqrgtT6GVF7"
+NEW_NID_DATA_ELEMENT_ID = "mvJZJVVtclN"
+NID_CCR_DATA_ELEMENT_ID = "JjYqVlKOhJp"
+
+ID_FAMILY_DATA_ELEMENT_ID = "uWxJlxRdELE"
+
+BENEFICIARY_PROGRAM = {"id": "pVgO58r40Au", "type": "TRACKER"}
+MATRIX_PROGRAM = {"id": "coLY2kfLmlC", "type": "EVENT"}
+
+def load_data(orgunit, program):
+    folder = f"results/extract_module/{orgunit['id']}/{program['id']}"
+    if not os.path.exists(folder):
+        return []
+    data = []
+    key = 'trackedEntities' if program['type'] == 'TRACKER' else 'events'
+    for file_name in sorted(os.listdir(folder)):
+        if file_name.endswith('.txt'):
+            file_path = os.path.join(folder, file_name)
+            with open(file_path, 'r', encoding='utf8') as f:
+                page_data = json.load(f)
+                if key in page_data:
+                    data.extend(page_data[key])
+    return data
+
+
+def group_data(orgunit, program):
+    data = load_data(orgunit, program)
+    valid_nid_teis = {}
+    processed = set()
+    # First pass: NID or NID ajuda
+    for item in data:
+        te_id = item['trackedEntity']
+        if te_id in processed:
+            continue
+        for attr in item['attributes']:
+            if attr['attribute'] in [NID_ATTRIBUTE_ID, NID_AJUDA_ATTRIBUTE_ID] and attr.get('value'):
+                nid_value = attr['value']
+                if nid_value not in valid_nid_teis:
+                    valid_nid_teis[nid_value] = []
+                valid_nid_teis[nid_value].append(item)
+                processed.add(te_id)
+                break
+
+
+    # Second pass: ID family for remaining
+    valid_family_id_teis = {}
+    for item in data:
+        te_id = item['trackedEntity']
+        if te_id in processed:
+            continue
+        for attr in item['attributes']:
+            if attr['attribute'] == ID_FAMILY_ATTRIBUTE_ID and attr.get('value'):
+                family_id_value = attr['value']
+                if family_id_value not in valid_family_id_teis:
+                    valid_family_id_teis[family_id_value] = []
+                valid_family_id_teis[family_id_value].append(item)
+                processed.add(te_id)
+                break
+
+    return valid_nid_teis, valid_family_id_teis
 
 
 
-def get_logger():
-    logger = utils.set_logger(log_file="extract_data.log")
-    return logger
+def match_data(matrix_data, valid_nid_teis, valid_family_id_teis):
+    valid_data = []
+    matched_events = set()
+    for event in matrix_data:
+        matched = False
+        # First, check NID dataElements
+        for de in [NID_DATA_ELEMENT_ID, NEW_NID_DATA_ELEMENT_ID, NID_CCR_DATA_ELEMENT_ID]:
+            for dv in event.get('dataValues', []):
+                if dv['dataElement'] == de and dv.get('value'):
+                    nid_val = dv['value']
+                    if nid_val in valid_nid_teis:
+                        teis = valid_nid_teis[nid_val]
+                        if len(teis) == 1:
+                            valid_data.append({'matrix': event, 'beneficiario': teis[0]})
+                        else:
+                            valid_data.append({'matrix': event['event'], 'beneficiario': [te['trackedEntity'] for te in teis]})
+                        matched_events.add(event['event'])
+                        matched = True
+                        break
+            if matched:
+                break
+        if not matched and event['event'] not in matched_events:
+            # Check ID_FAMILY
+            for dv in event.get('dataValues', []):
+                if dv['dataElement'] == ID_FAMILY_DATA_ELEMENT_ID and dv.get('value'):
+                    family_val = dv['value']
+                    if family_val in valid_family_id_teis:
+                        teis = valid_family_id_teis[family_val]
+                        if len(teis) == 1:
+                            valid_data.append({'matrix': event, 'beneficiario': teis[0]})
+                        else:
+                            valid_data.append({'matrix': event['event'], 'beneficiario': [te['trackedEntity'] for te in teis]})
+                        break
+    return valid_data
 
 
 
-def generate_endpoint(program:dict):
+def process_data():
 
-    if program['type'] == "TRACKER":
-      return "trackedEntities"
+    orgunits = extract_data.get_organisation_units_based_on_level()
 
-    if program['type'] == "EVENT":
-      return "events"
+    for orgunit in orgunits:
+
+        print("Processing data for organisation unit:", orgunit['name'])
+        
+        print("Processing data for program")
+        valid_nid_teis, valid_family_id_teis = group_data(orgunit, BENEFICIARY_PROGRAM)
+        print(f"Valid TEIs with NID or NID Ajuda: {len(valid_nid_teis)}")
+        print(f"Valid TEIs with ID Family: {len(valid_family_id_teis)}")
+        print("\n")
     
-    raise ValueError("Endpoint not correct defiend in config file")
-      
-
-
-
-def get_organisation_units_based_on_level() -> list:
-
-    logger = get_logger()
-    logging.info(f"Download OUs")
-
-    """
-    Get origin server orgunits based on the defined levels in config file.
-    If not set it will use the district level (level 3) by default.
-    This is to improve the data retriving process
-    """
-
-    config = utils.get_config_file()
-
-    client = DHIS2Client(
-        base_url=config['originServer']['url'],
-        username=config['originServer']['username'],
-        password=config['originServer']['pass'],  # Basic auth by default,
-        verify_ssl=False
-    )
-
-    level = config['downloadLevel'] if 'downloadLevel' in config else 3 
-    results = client.get("/api/organisationUnits", params={"level": level, "fields": "id,name", "paging": False})
-    logger.info(f"Downloaded {len(results['organisationUnits'])} organisation units")
-    return results['organisationUnits']
-
-
-
-def get_total_data(program:str, endpoint:str, orgunit:str, page_size:int, client: DHIS2Client):
-
-    results = client.get(f"/api/tracker/{endpoint}.json", params={"totalPages": True, "program": program, "orgUnit": orgunit, "ouMode": "DESCENDANTS", "pageSize": page_size, "fields": "created"})
-    # logger.info(f"Downloaded {len(results['organisationUnits'])} organisation units")
-    return results
+        print("Retrieving data for Matrix program")
+        matrix_data = load_data(orgunit, MATRIX_PROGRAM)
 
 
 
 
-def downloading_tracked_entities() -> list:
-
-    logger = get_logger()
-    logging.info(f"Download TEIs")
-
-    """
-    Downloading teis and storing local so improve job performance,
-    The job downloads the data per organisaiton units.
-    """
-
-    config = utils.get_config_file()
-
-    client = DHIS2Client(
-        base_url=config['originServer']['url'],
-        username=config['originServer']['username'],
-        password=config['originServer']['pass'],  # Basic auth by default,
-        verify_ssl=False
-    )
-
-    org_units = get_organisation_units_based_on_level()
-
-    page_size = config['teiDownloadPageSize'] if 'teiDownloadPageSize' in config else 500
 
 
-    for program in config['programs']:
 
-        for orgunit in org_units: 
-            
-            print("Retrieving info for program:", program['name'], "for organisation unit:", orgunit['name'])
-            endpoint = generate_endpoint(program=program)
-            program_pager = get_total_data(program=program['id'], endpoint=endpoint, orgunit=orgunit['id'], page_size=page_size, client=client)
-
-            if program_pager['pageCount'] > 0:
-
-                data_folder = f"results/extracat_module/{orgunit['id']}/{program['id']}"
-                os.makedirs(data_folder, exist_ok=True)
-
-                for page in range(1, program_pager['pageCount'] + 1):
-                    print("Downloadinf data for program:", program['name'], "for organisation unit:", orgunit['name'], "page:", page, "/", program_pager['pageCount'])
-                    results = client.get(f"/api/tracker/{endpoint}.json", params={"page": page, "fields": "*,enrollments[*,!events]", "pageSize": page_size})
-                
-                    with open(f"{data_folder}/{page}.txt", "w", encoding="utf8") as f:
-                        f.write(json.dumps(results))
-                    
-                    print(f"✅ Data downloaded and saved", "\n")
-            
-            else:
-                print(f"⚠️ No Data available", "\n")
 
 
 
 
 def execute():
 
-    downloading_tracked_entities()
+    pass
 
 
 
