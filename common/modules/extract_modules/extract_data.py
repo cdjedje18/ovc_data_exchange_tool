@@ -22,6 +22,17 @@ def generate_endpoint(program:dict):
       return "events"
     
     raise ValueError("Endpoint not correct defiend in config file")
+
+
+def generate_fields(program:dict):
+
+    if program['type'] == "TRACKER":
+      return "*,enrollments[*,!events,!attributes]"
+
+    if program['type'] == "EVENT":
+      return "*"
+    
+    raise ValueError("Endpoint not correct defiend in config file")
       
 
 
@@ -92,6 +103,7 @@ def downloading_tracked_entities() -> list:
             
             print("Retrieving info for program:", program['name'], "for organisation unit:", orgunit['name'])
             endpoint = generate_endpoint(program=program)
+            fields = generate_fields(program=program)
             program_pager = get_total_data(program=program['id'], endpoint=endpoint, orgunit=orgunit['id'], page_size=page_size, client=client)
 
             if program_pager['pageCount'] > 0:
@@ -100,8 +112,13 @@ def downloading_tracked_entities() -> list:
                 os.makedirs(data_folder, exist_ok=True)
 
                 for page in range(1, program_pager['pageCount'] + 1):
-                    print("Downloadinf data for program:", program['name'], "for organisation unit:", orgunit['name'], "page:", page, "/", program_pager['pageCount'])
-                    results = client.get(f"/api/tracker/{endpoint}.json", params={"page": page, "fields": "*,enrollments[*,!events]", "pageSize": page_size})
+
+                    if os.path.exists(f"{data_folder}/{page}.txt"):
+                        print(f"⚠️ Data for page {page} already exists, skipping download.")
+                        continue
+
+                    print("Downloading data for program:", program['name'], "for organisation unit:", orgunit['name'], "page:", page, "/", program_pager['pageCount'])
+                    results = client.get(f"/api/tracker/{endpoint}.json", params={"program": program['id'], "orgUnit": orgunit['id'], "ouMode": "DESCENDANTS", "page": page, "fields": fields, "pageSize": page_size})
                 
                     with open(f"{data_folder}/{page}.txt", "w", encoding="utf8") as f:
                         f.write(json.dumps(results))

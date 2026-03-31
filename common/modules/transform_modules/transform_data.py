@@ -18,13 +18,18 @@ NID_CCR_DATA_ELEMENT_ID = "JjYqVlKOhJp"
 
 ID_FAMILY_DATA_ELEMENT_ID = "uWxJlxRdELE"
 
-BENEFICIARY_PROGRAM = {"id": "pVgO58r40Au", "type": "TRACKER"}
-MATRIX_PROGRAM = {"id": "coLY2kfLmlC", "type": "EVENT"}
+BENEFICIARY_PROGRAM = {"id": "pVgO58r40Au", "name": "Beneficiary Program", "type": "TRACKER"}
+MATRIX_PROGRAM = {"id": "coLY2kfLmlC", "name": "Matrix Program", "type": "EVENT"}
+
+
 
 def load_data(orgunit, program):
+    # print(orgunit, program)
     folder = f"results/extract_module/{orgunit['id']}/{program['id']}"
     if not os.path.exists(folder):
+        print(f"⚠️ No local data found for program {program['name']} and organisation unit {orgunit['name']}. Skipping.")
         return []
+    
     data = []
     key = 'trackedEntities' if program['type'] == 'TRACKER' else 'events'
     for file_name in sorted(os.listdir(folder)):
@@ -37,8 +42,8 @@ def load_data(orgunit, program):
     return data
 
 
-def group_data(orgunit, program):
-    data = load_data(orgunit, program)
+def group_data(data):
+    # data = load_data(orgunit, program)
     valid_nid_teis = {}
     processed = set()
     # First pass: NID or NID ajuda
@@ -77,6 +82,7 @@ def group_data(orgunit, program):
 
 def match_data(matrix_data, valid_nid_teis, valid_family_id_teis):
     valid_data = []
+    non_valid_data = []
     matched_events = set()
     for event in matrix_data:
         matched = False
@@ -90,12 +96,13 @@ def match_data(matrix_data, valid_nid_teis, valid_family_id_teis):
                         if len(teis) == 1:
                             valid_data.append({'matrix': event, 'beneficiario': teis[0]})
                         else:
-                            valid_data.append({'matrix': event['event'], 'beneficiario': [te['trackedEntity'] for te in teis]})
+                            non_valid_data.append({'matrix': event['event'], 'beneficiario': [te['trackedEntity'] for te in teis]})
                         matched_events.add(event['event'])
                         matched = True
                         break
             if matched:
                 break
+            
         if not matched and event['event'] not in matched_events:
             # Check ID_FAMILY
             for dv in event.get('dataValues', []):
@@ -106,22 +113,26 @@ def match_data(matrix_data, valid_nid_teis, valid_family_id_teis):
                         if len(teis) == 1:
                             valid_data.append({'matrix': event, 'beneficiario': teis[0]})
                         else:
-                            valid_data.append({'matrix': event['event'], 'beneficiario': [te['trackedEntity'] for te in teis]})
+                            non_valid_data.append({'matrix': event['event'], 'beneficiario': [te['trackedEntity'] for te in teis]})
                         break
-    return valid_data
+
+    return valid_data, non_valid_data
 
 
 
-def process_data():
-
-    orgunits = extract_data.get_organisation_units_based_on_level()
+def process_data(orgunits: list):
 
     for orgunit in orgunits:
 
-        print("Processing data for organisation unit:", orgunit['name'])
+        print("Initializing transformation for organisation unit:", orgunit['name'])
         
-        print("Processing data for program")
-        valid_nid_teis, valid_family_id_teis = group_data(orgunit, BENEFICIARY_PROGRAM)
+        beneficiary_data = load_data(orgunit, BENEFICIARY_PROGRAM)
+
+        if len(beneficiary_data) == 0:
+            print("\n")
+            continue
+
+        valid_nid_teis, valid_family_id_teis = group_data(beneficiary_data)
         print(f"Valid TEIs with NID or NID Ajuda: {len(valid_nid_teis)}")
         print(f"Valid TEIs with ID Family: {len(valid_family_id_teis)}")
         print("\n")
@@ -129,19 +140,21 @@ def process_data():
         print("Retrieving data for Matrix program")
         matrix_data = load_data(orgunit, MATRIX_PROGRAM)
 
+        match_data_result, non_valid_data = match_data(matrix_data=matrix_data, valid_nid_teis=valid_nid_teis, valid_family_id_teis=valid_family_id_teis)
 
+        data_folder = f"results/transform_module/{orgunit['id']}"
+        os.makedirs(data_folder, exist_ok=True)
 
-
-
-
-
-
+        with open(f"results/transform_module/{orgunit['id']}/valid_data.txt", "w", encoding="utf8") as f:
+            json.dump(match_data_result, f)
 
 
 
 def execute():
 
-    pass
+    orgunits = extract_data.get_organisation_units_based_on_level()
+
+    process_data(orgunits=orgunits)
 
 
 
