@@ -25,10 +25,10 @@ def get_logger():
 
 def generate_endpoint(program:dict):
 
-    if program['type'] == "TRACKER":
+    if program['programType'] == constants.TRACKER_PROGRAM_TYPE:
       return "trackedEntities"
 
-    if program['type'] == "EVENT":
+    if program['programType'] == constants.EVENT_PROGRAM_TYPE:
       return "events"
     
     raise ValueError("Endpoint not correct defiend in config file")
@@ -36,10 +36,10 @@ def generate_endpoint(program:dict):
 
 def generate_fields(program:dict):
 
-    if program['type'] == "TRACKER":
+    if program['programType'] == constants.TRACKER_PROGRAM_TYPE:
       return "*,enrollments[*,!events,!attributes]"
 
-    if program['type'] == "EVENT":
+    if program['programType'] == constants.EVENT_PROGRAM_TYPE:
       return "*"
     
     raise ValueError("Endpoint not correct defiend in config file")
@@ -82,6 +82,15 @@ def create_client(config: dict) -> DHIS2Client:
         password=config['pass']
     )
     return client
+
+
+
+
+def get_programs() -> list:
+
+    client = create_client(config=utils.get_config_file()['originServer'])
+    programs = client.get("/api/programs", params={"fields": "id,name,programType", "paging": False})
+    return programs['programs']
 
 
 
