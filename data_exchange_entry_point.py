@@ -15,7 +15,7 @@ def execute():
     execution_config = data_exchange.DataExchangeExecutionConfig(
         program=config['otherPrograms'][0],
         page_size=config['teiDownloadPageSize'],
-        async_import=True)
+        async_import=False)
 
     data_exchange.execute(execution_config=execution_config)
 
