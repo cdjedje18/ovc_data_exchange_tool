@@ -1,0 +1,58 @@
+{
+    "originServer": {
+        "url": "https://kudufly.com/ovc",
+        "username": "",
+        "pass": ""
+    },
+    "destinyServer": {
+        "url": "https://kudufly.com/dhis",
+        "username": "",
+        "pass": ""
+    },
+    "downalodLevel": 3,
+    "teiDownloadPageSize": 500,
+    "programs": [
+        {
+            "id": "pVgO58r40Au",
+            "name": "Seguimento Beneficiarios",
+            "type": "TRACKER"
+        },
+        {
+            "id": "coLY2kfLmlC",
+            "name": "Matrix",
+            "type": "EVENT"
+        },
+        {
+            "id": "iSPc45re0MZ",
+            "name": "Seguimento Familias",
+            "type": "TRACKER"
+        }
+    ],
+    "otherPrograms": [
+        {
+            "id": "iSPc45re0MZ",
+            "name": "Registo e seguimento de FAMÍLIAS",
+            "type": "TRACKER",
+            "programType": "WITH_REGISTRATION"
+        }
+    ],
+    "criterias": [
+        {
+            "level": 1,
+            "name": "NID",
+            "source": "beneficiarios",
+            "target": "pVgO58r40Au"
+        },
+        {
+            "level": 2,
+            "name": "ID",
+            "source": "beneficiarios",
+            "target": "pVgO58r40Au"
+        },
+        {
+            "level": 3,
+            "source": "beneficiarios",
+            "target": "pVgO58r40Au"
+        }
+    ]
+}

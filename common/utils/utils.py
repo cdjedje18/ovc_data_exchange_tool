@@ -6,7 +6,7 @@ import os
 
 def get_config_file():
 
-    f = open("config.json", "r")
+    f = open("config.json", "r", encoding="utf8")
     config = json.loads(f.read())
     f.close()
 
