@@ -29,5 +29,97 @@
             "attributeName": "É membro principal",
             "attributeId": "je2fRCtUN0e"
         }
+    ],
+    "programStages": [
+        {
+            "programStageId": "We3d4aGUClX",
+            "programStageName": "Testagem da Criança (MRP)",
+            "eventsMapping": [
+                {
+                    "name": "1º Teste com PCR: de 1 a 09 Meses",
+                    "mapping": [
+                        {
+                            "sourceDataElementId": "xnrwnYnUYPx",
+                            "dataElementName": "Data da Testagem 1º PCR",
+                            "targetDataElementId": "PGBh48M02WD",
+                            "targetDataElementName": "OVC | Data de Testagem"
+                        },
+                        {
+                            "sourceDataElementId": "GUHCCn5p7VI",
+                            "dataElementName": "Intervalo de Idade da Testagem 1 (Matriz)",
+                            "targetDataElementId": "yeNFueBzZZO",
+                            "targetDataElementName": "OVC | Idade em meses na data de testagem"
+                        },
+                        {
+                            "sourceDataElementId": "liOK1PFTUic",
+                            "dataElementName": "Resultado do 1 Teste PCR (Matriz)",
+                            "targetDataElementId": "G9To0bHDCz9",
+                            "targetDataElementName": "OVC | Resutado da Testagem"
+                        },
+                        {
+                            "defaultValue": "1 Teste",
+                            "targetDataElementId": "rcFzCvWEpps",
+                            "targetDataElementName": "OVC | Ciclo de Testagem"
+                        }
+                    ]
+                },
+                {
+                    "name": "2º Teste com PCR: Criança de 09 a 17 Meses",
+                    "mapping": [
+                        {
+                            "sourceDataElementId": "YCaLEsFErOD",
+                            "dataElementName": "Data da Testagem 1º PCR",
+                            "targetDataElementId": "PGBh48M02WD",
+                            "targetDataElementName": "OVC | Data de Testagem"
+                        },
+                        {
+                            "sourceDataElementId": "KURDwlH4yBX",
+                            "dataElementName": "Intervalo de Idade da Testagem 1 (Matriz)",
+                            "targetDataElementId": "yeNFueBzZZO",
+                            "targetDataElementName": "OVC | Idade em meses na data de testagem"
+                        },
+                        {
+                            "sourceDataElementId": "IwImbR4Y7AV",
+                            "dataElementName": "Resultado do 1 Teste PCR (Matriz)",
+                            "targetDataElementId": "G9To0bHDCz9",
+                            "targetDataElementName": "OVC | Resutado da Testagem"
+                        },
+                        {
+                            "defaultValue": "2 Teste",
+                            "targetDataElementId": "rcFzCvWEpps",
+                            "targetDataElementName": "OVC | Ciclo de Testagem"
+                        }
+                    ]
+                },
+                {
+                    "name": "Teste Rápido: Criança >=18Meses",
+                    "mapping": [
+                        {
+                            "sourceDataElementId": "uE9r1nt8kJM",
+                            "dataElementName": "Data da Testagem 1º PCR",
+                            "targetDataElementId": "PGBh48M02WD",
+                            "targetDataElementName": "OVC | Data de Testagem"
+                        },
+                        {
+                            "sourceDataElementId": "t2EdbhtCGbr",
+                            "dataElementName": "Intervalo de Idade da Testagem 1 (Matriz)",
+                            "targetDataElementId": "yeNFueBzZZO",
+                            "targetDataElementName": "OVC | Idade em meses na data de testagem"
+                        },
+                        {
+                            "sourceDataElementId": "ZpH0JDRwX0S",
+                            "dataElementName": "Resultado do 1 Teste PCR (Matriz)",
+                            "targetDataElementId": "G9To0bHDCz9",
+                            "targetDataElementName": "OVC | Resutado da Testagem"
+                        },
+                        {
+                            "defaultValue": "2 Teste",
+                            "targetDataElementId": "rcFzCvWEpps",
+                            "targetDataElementName": "OVC | Ciclo de Testagem"
+                        }
+                    ]
+                }
+            ]
+        }
     ]
 }
