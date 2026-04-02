@@ -1,88 +1,33 @@
 {
     "attributes": [
         {
-            "originId": "u7h0fw2PYaW",
-            "originName": "Critérios de Elegibilidade Prioritários",
-            "destinyName": "Critérios de Elegibilidade Prioritários",
-            "destinyId": "GoH4WWhcaCz"
+            "dataElementId": "gFWioX5sFdb",
+            "dataElementName": "Data de Inscrição (MRP)",
+            "attributeName": "OVC | Data de Inscrição (MRP)",
+            "attributeId": "UHxg1UItBKx"
         },
         {
-            "originId": "Z7kjEEFlxHo",
-            "originName": "Data de Início TARV (YYYY-MM-DD)",
-            "destinyName": "Data de Início TARV (YYYY-MM-DD)",
-            "destinyId": "jvxnIFUs8S0"
+            "dataElementId": "ONoiMr9ckIb",
+            "dataElementName": "O beneficiário foi inscrito? (MRP)",
+            "attributeName": "OVC | O beneficiário foi inscrito? (MRP)",
+            "attributeId": "Ktbb3xfiuGl"
         },
         {
-            "originId": "gFWioX5sFdb",
-            "originName": "Data de Inscrição (YYYY-MM-DD)",
-            "destinyName": "Data do registo da família (YYYY-MM-DD)",
-            "destinyId": "knaCOGZ84gp"
+            "dataElementId": "Ki1LHQV7H02",
+            "dataElementName": "Outros motivos de não inscrição do beneficiário (MRP)",
+            "attributeName": "OVC | Outros motivos de não inscrição do beneficiário (MRP)",
+            "attributeId": "CyN0JEMNUWC"
         },
         {
-            "originId": "W0ObXI5lgMS",
-            "originName": "Data de Nascimento",
-            "destinyName": "Idade",
-            "destinyId": "zLCZavzzwCI"
+            "dataElementId": "Ux9C1nvRazb",
+            "dataElementName": "Porque o beneficiário não foi inscrito? MRP",
+            "attributeName": "OVC | Porque o beneficiário não foi inscrito? MRP",
+            "attributeId": "MDDiiF7aLdH"
         },
         {
-            "originId": "swK5wYdR50d",
-            "originName": "É Waiver?",
-            "destinyName": "É Waiver?",
-            "destinyId": "ntogDt6vKk5"
-        },
-        {
-            "originId": "xnUFKHyQnHM",
-            "originName": "Faixa Etária",
-            "destinyName": "Intervalo de idade",
-            "destinyId": "UroKeEZ7tDo"
-        },
-        {
-            "originId": "uWxJlxRdELE",
-            "originName": "Id Familia",
-            "destinyName": "ID Família",
-            "destinyId": "hXpyioqAugh"
-        },
-        {
-            "originId": "c026wYz5Z5w",
-            "originName": "Idade (Calculada)",
-            "destinyName": "Idade (calculada)",
-            "destinyId": "oJikYyD7QI3"
-        },
-        {
-            "originId": "ja328lxwqXb",
-            "originName": "Mudança de tipo de Beneficiário - Criança com Diagnostico Definitivo",
-            "destinyName": "Mudança de tipo de Beneficiário - Criança com Diagnostico Definitivo",
-            "destinyId": "mJn8Jzaxhm5"
-        },
-        {
-            "originId": "dqrgtT6GVF7",
-            "originName": "NID do paciente",
-            "destinyName": "NID",
-            "destinyId": "ZPKAQj86KBI"
-        },
-        {
-            "originId": "wFvAoLyncDd",
-            "originName": "Nome Completo do Beneficiário",
-            "destinyName": "Nome do membro",
-            "destinyId": "PP0L2IEL4Dm"
-        },
-        {
-            "originId": "ywaFXroOUSX",
-            "originName": "Nome do gestor de caso a quem se refere",
-            "destinyName": "Nome do Gestor de Caso",
-            "destinyId": "dGsuAVmPwv7"
-        },
-        {
-            "originId": "aNSp2Vlubzo",
-            "originName": "Sexo",
-            "destinyName": "Sexo",
-            "destinyId": "QZWrwRQ0CRe"
-        },
-        {
-            "originId": "e4htvWJG9fy",
-            "originName": "Tipo de beneficiário",
-            "destinyName": "Tipo de Subgrupo OVC",
-            "destinyId": "ZKMpizzJhdf"
+            "defaultValue": true,
+            "attributeName": "É membro principal",
+            "attributeId": "je2fRCtUN0e"
         }
     ]
 }
