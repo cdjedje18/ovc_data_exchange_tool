@@ -141,7 +141,9 @@ GitHub.sublime-settings
 
 /results
 config.json
+config.bak.json
 /control
+
 
 
 data.txt

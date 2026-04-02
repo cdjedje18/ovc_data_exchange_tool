@@ -1,11 +1,11 @@
 {
     "originServer": {
-        "url": "https://kudufly.com/ovc",
+        "url": "",
         "username": "",
         "pass": ""
     },
     "destinyServer": {
-        "url": "https://kudufly.com/dhis",
+        "url": "",
         "username": "",
         "pass": ""
     },
