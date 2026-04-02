@@ -1,5 +1,6 @@
 from dhis2_client import DHIS2Client, client
 import logging
+from dhis2_client.errors import DHIS2HTTPError
 import urllib3
 from common import constants
 from common.utils import utils
@@ -70,7 +71,7 @@ def clear_data_exchange_folder(program_id: str):
 
 def get_total_data(program:str, endpoint:str, page_size:int, client: DHIS2Client):
 
-    results = client.get(f"/api/tracker/{endpoint}.json", params={"totalPages": True, "program": program, "ouMode": "ALL", "pageSize": page_size, "fields": "created"})
+    results = client.get(f"/api/tracker/{endpoint}.json", params={"totalPages": True, "program": program, "ouMode": "ACCESSIBLE", "pageSize": page_size, "fields": "created"})
     # logger.info(f"Downloaded {len(results['organisationUnits'])} organisation units")
     return results
 
@@ -79,7 +80,8 @@ def create_client(config: dict) -> DHIS2Client:
     client = DHIS2Client(
         base_url=config['url'],
         username=config['username'],
-        password=config['pass']
+        password=config['pass'],
+        verify_ssl=False
     )
     return client
 
@@ -111,7 +113,7 @@ def downloading_data_tracked_entities(endpoint: str, fields: str, page: int, exe
     # logger = get_logger()
     # logging.info(f"Download TEIs")
 
-    results = client.get(f"/api/tracker/{endpoint}.json", params={"program": execution_config.program['id'], "ouMode": "ALL", "page": page, "fields": fields, "pageSize": execution_config.page_size})
+    results = client.get(f"/api/tracker/{endpoint}.json", params={"program": execution_config.program['id'], "ouMode": "ACCESSIBLE", "page": page, "fields": fields, "pageSize": execution_config.page_size})
     # print(results)
 
     print(f"✅ {len(results[endpoint]) if endpoint in results else len(results[constants.INSTANCES])}  Data downloaded")
@@ -135,13 +137,14 @@ def downloading_data_events(endpoint: str, fields: str, page: int, execution_con
 def send_data_to_destiny(data: dict, execution_config: DataExchangeExecutionConfig, client: DHIS2Client = None):
 
     try:
-        
+        # print(json.dumps(data))
         results = client.post(f"/api/tracker.json", json=data, params={"async": execution_config.async_import})
-        # print(results)
-        print(f"✅ Data sent to destiny server with response")
+        print(results)
+        # print(f"✅ Data sent to destiny server with response")
         return results
     
-    except:
+    except DHIS2HTTPError as e:
+        # print(e)
         print("❌ Error sending data to destiny server")
         return None
     
@@ -164,12 +167,16 @@ def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_
                 continue
             print(f"Downloading tracked entities for program {execution_config.program['name']}: page {page} / {program_pager_tracker['pageCount']}")
             data = downloading_data_tracked_entities(endpoint=endpoint_tracker, fields=fields_tracker, page=page, execution_config=execution_config, client=origin_client)
+            
+            data_to_send = {
+                "trackedEntities": data[endpoint_tracker] if endpoint_tracker in data else data[constants.INSTANCES]  
+            }
             print(f"Sending tracked entities to destiny server for program {execution_config.program['name']}: page {page} / {program_pager_tracker['pageCount']}")
-            send_result = send_data_to_destiny(data=data, execution_config=execution_config, client=destiny_client)
+            send_result = send_data_to_destiny(data=data_to_send, execution_config=execution_config, client=destiny_client)
             print("\n")
             if send_result is not None:
                 with open(f"{folder_tracker}/{page}.txt", "w", encoding="utf8") as f:
-                    f.write("true")
+                    f.write(json.dumps(send_result))
     
     else:
         print(f"⚠️ No Data available for {execution_config.program['name']} tracker", "\n")
@@ -192,8 +199,11 @@ def handle_event(execution_config: DataExchangeExecutionConfig, origin_client: D
                 continue
             print(f"Downloading events for program {execution_config.program['name']}: page {page} / {program_pager_event['pageCount']}")
             data = downloading_data_events(endpoint=endpoint_event, fields=fields_event, page=page, execution_config=execution_config, client=origin_client)
+            data_to_send = {
+                "events": data[endpoint_event] if endpoint_event in data else data[constants.INSTANCES]
+            }
             print(f"Sending events to destiny server for program {execution_config.program['name']}: page {page} / {program_pager_event['pageCount']}")
-            send_result = send_data_to_destiny(data=data, execution_config=execution_config, client=destiny_client)
+            send_result = send_data_to_destiny(data=data_to_send, execution_config=execution_config, client=destiny_client)
             print("\n")
             if send_result is not None:
                 with open(f"{folder_event}/{page}.txt", "w", encoding="utf8") as f:

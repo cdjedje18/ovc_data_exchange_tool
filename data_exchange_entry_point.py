@@ -7,13 +7,15 @@ from common.utils import utils
 def execute():
 
     config = utils.get_config_file()
+    harmonize_config = utils.get_harmonization_file()
+    # print(harmonize_config['otherPrograms'])
 
     # print(config)
 
-    data_exchange.clear_data_exchange_folder(program_id=config['otherPrograms'][0]['id'])
+    data_exchange.clear_data_exchange_folder(program_id=harmonize_config['otherPrograms'][0]['id'])
 
     execution_config = data_exchange.DataExchangeExecutionConfig(
-        program=config['otherPrograms'][0],
+        program=harmonize_config['otherPrograms'][0],
         page_size=config['teiDownloadPageSize'],
         async_import=False)
 

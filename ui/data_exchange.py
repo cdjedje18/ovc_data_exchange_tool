@@ -29,6 +29,7 @@ def create_data_exchange_frame(parent, show_frame):
         prog_list = get_programs()
         programs = [f"{p['name']} ({p['id']})" for p in prog_list]
     except Exception as e:
+        print(f"[ERROR] Failed to load programs: {e}")
         programs = ["<failed to load programs>"]
 
     selected_program = ctk.StringVar(value=programs[0] if programs else "")

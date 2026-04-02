@@ -5,8 +5,12 @@ from common.utils import config_utils
 def create_configuration_frame(parent, show_frame):
     frame = ctk.CTkFrame(parent)
 
-    title = ctk.CTkLabel(frame, text="Configuration", font=ctk.CTkFont(size=20, weight="bold"))
-    title.pack(pady=20)
+    header = ctk.CTkFrame(frame)
+    header.pack(fill="x", padx=15, pady=12)
+    title = ctk.CTkLabel(header, text="Configuration", font=ctk.CTkFont(size=20, weight="bold"))
+    title.pack(side="left")
+    back = ctk.CTkButton(header, text="Back", command=lambda: show_frame("home"))
+    back.pack(side="right")
 
     config = config_utils.load_config()
 
@@ -103,9 +107,6 @@ def create_configuration_frame(parent, show_frame):
 
     reload_btn = ctk.CTkButton(button_frame, text="Reload configuration", command=lambda: frame.after(10, _populate_from_config))
     reload_btn.pack(side="left", padx=6)
-
-    back = ctk.CTkButton(frame, text="Back", command=lambda: show_frame("home"))
-    back.pack(pady=10)
 
     def _populate_from_config():
         loaded = config_utils.load_config()
