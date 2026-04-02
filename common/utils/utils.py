@@ -15,6 +15,15 @@ def get_config_file():
 
 
 
+def get_harmonization_file():
+
+    f = open("harmonization_programs.json", "r", encoding="utf8")
+    harmonization_programs = json.loads(f.read())
+    f.close()
+
+    return harmonization_programs
+
+
 def get_mapping_file():
 
     f = open("mapping.json", "r", encoding="utf8")

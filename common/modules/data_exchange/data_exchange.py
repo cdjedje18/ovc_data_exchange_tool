@@ -37,7 +37,7 @@ def generate_endpoint(program:dict):
 def generate_fields(program:dict):
 
     if program['programType'] == constants.TRACKER_PROGRAM_TYPE:
-      return "*,enrollments[*,!events,!attributes]"
+      return "*,!relationships,enrollments[*,!events,!attributes]"
 
     if program['programType'] == constants.EVENT_PROGRAM_TYPE:
       return "*"

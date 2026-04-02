@@ -157,8 +157,6 @@ def generating_attributes(matrix_event_data_value_dict:dict, mapping:dict):
 
     mapping_attributes = mapping.get("attributes", [])
     for mapping_attr in mapping_attributes:
-        de_id = mapping_attr['dataElementId']
-        attr_id = mapping_attr['attributeId']
 
         if "defaultValue" in mapping_attr:
             attributes.append({
@@ -166,6 +164,9 @@ def generating_attributes(matrix_event_data_value_dict:dict, mapping:dict):
                 "value": mapping_attr['defaultValue']
             })
             continue
+
+        de_id = mapping_attr['dataElementId']
+        attr_id = mapping_attr['attributeId']
 
         if de_id in matrix_event_data_value_dict:
             attributes.append({
@@ -182,8 +183,6 @@ def generating_data_values(matrix_event_data_value_dict:dict, data_values_mappin
     data_values = []
 
     for data_value_mapping_item in data_values_mapping:
-        source_de_id = data_value_mapping_item['sourceDataElementId']
-        target_de_id = data_value_mapping_item['targetDataElementId']
 
         if "defaultValue" in data_value_mapping_item:
             data_values.append({
@@ -191,6 +190,9 @@ def generating_data_values(matrix_event_data_value_dict:dict, data_values_mappin
                 "value": data_value_mapping_item['defaultValue']
             })
             continue
+
+        source_de_id = data_value_mapping_item['sourceDataElementId']
+        target_de_id = data_value_mapping_item['targetDataElementId']
 
         if source_de_id in matrix_event_data_value_dict:
             data_values.append({
@@ -207,8 +209,10 @@ def generating_data_values(matrix_event_data_value_dict:dict, data_values_mappin
 def is_mapping_event_valid(matrix_event_data_value_dict:dict, event_mapping:dict):
 
     
-    for event_mapping_item in event_mapping['eventsMapping']:
-        de_id = event_mapping_item['dataElementId']
+    for event_mapping_item in event_mapping['mapping']:
+        if "defaultValue" in event_mapping_item:
+            continue
+        de_id = event_mapping_item['sourceDataElementId']
         if de_id in matrix_event_data_value_dict and matrix_event_data_value_dict[de_id].get('value'):
             return True
 
@@ -232,6 +236,7 @@ def generate_events(matrix_event_data_value_dict:dict, mapping:dict, beneficiari
 
     program_stages_mapping = mapping.get("programStages", [])
     for program_stage_mapping in program_stages_mapping:
+        # print(program_stage_mapping)
         for mapping_event in program_stage_mapping['eventsMapping']:
 
             is_valid = is_mapping_event_valid(matrix_event_data_value_dict=matrix_event_data_value_dict, event_mapping=mapping_event)
@@ -310,12 +315,14 @@ def execute():
 
     process_data(orgunits=orgunits)
 
+    transform_data(orgunits=orgunits)
+
 
 
 
 
 if __name__ == "__main__":
-    pass
+    execute()
 
 
 
