@@ -1,5 +1,6 @@
 import json
 import logging
+from logging import config
 import urllib3
 import os
 
@@ -11,6 +12,16 @@ def get_config_file():
     f.close()
 
     return config
+
+
+
+def get_mapping_file():
+
+    f = open("mapping.json", "r", encoding="utf8")
+    mapping = json.loads(f.read())
+    f.close()
+
+    return mapping
 
 
 def get_log_folder():

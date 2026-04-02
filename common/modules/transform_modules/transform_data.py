@@ -150,6 +150,160 @@ def process_data(orgunits: list):
 
 
 
+
+def generating_attributes(matrix_event_data_value_dict:dict, mapping:dict):
+
+    attributes = []
+
+    mapping_attributes = mapping.get("attributes", [])
+    for mapping_attr in mapping_attributes:
+        de_id = mapping_attr['dataElementId']
+        attr_id = mapping_attr['attributeId']
+
+        if "defaultValue" in mapping_attr:
+            attributes.append({
+                "attribute": attr_id,
+                "value": mapping_attr['defaultValue']
+            })
+            continue
+
+        if de_id in matrix_event_data_value_dict:
+            attributes.append({
+                "attribute": attr_id,
+                "value": matrix_event_data_value_dict[de_id]['value']
+            })
+
+    return attributes
+
+
+
+def generating_data_values(matrix_event_data_value_dict:dict, data_values_mapping:dict):
+
+    data_values = []
+
+    for data_value_mapping_item in data_values_mapping:
+        source_de_id = data_value_mapping_item['sourceDataElementId']
+        target_de_id = data_value_mapping_item['targetDataElementId']
+
+        if "defaultValue" in data_value_mapping_item:
+            data_values.append({
+                "dataElement": target_de_id,
+                "value": data_value_mapping_item['defaultValue']
+            })
+            continue
+
+        if source_de_id in matrix_event_data_value_dict:
+            data_values.append({
+                "dataElement": target_de_id,
+                "value": matrix_event_data_value_dict[source_de_id]['value'],
+                'createdAt': matrix_event_data_value_dict[source_de_id].get('createdAt'),
+                'updatedAt': matrix_event_data_value_dict[source_de_id].get('updatedAt'),
+            })
+
+    return data_values
+
+    
+
+def is_mapping_event_valid(matrix_event_data_value_dict:dict, event_mapping:dict):
+
+    
+    for event_mapping_item in event_mapping['eventsMapping']:
+        de_id = event_mapping_item['dataElementId']
+        if de_id in matrix_event_data_value_dict and matrix_event_data_value_dict[de_id].get('value'):
+            return True
+
+    return False
+
+
+
+def generated_event_date(data_values: list):
+
+    for dv in data_values:
+        if "createdAt" in dv and dv['createdAt']:
+            return dv['createdAt']
+
+    return -1
+
+
+
+def generate_events(matrix_event_data_value_dict:dict, mapping:dict, beneficiario:dict):
+
+    events = []
+
+    program_stages_mapping = mapping.get("programStages", [])
+    for program_stage_mapping in program_stages_mapping:
+        for mapping_event in program_stage_mapping['eventsMapping']:
+
+            is_valid = is_mapping_event_valid(matrix_event_data_value_dict=matrix_event_data_value_dict, event_mapping=mapping_event)
+            if is_valid:
+                new_event = {
+                    "program": mapping_event['programId'],
+                    "programStage": mapping_event['programStageId'],
+                    "orgUnit": mapping_event['orgUnitId'],
+                    "trackedEntity": beneficiario['trackedEntity'],
+                    "dataValues": generating_data_values(matrix_event_data_value_dict=matrix_event_data_value_dict, data_values_mapping=mapping_event.get('mapping', [])),
+                }
+                new_event['occureddAt'] = generated_event_date(data_values=new_event['dataValues'])
+                events.append(new_event)
+                
+
+    return events
+
+
+
+
+def transform_data(orgunits: list):
+
+    mapping = utils.get_mapping_file()
+
+    print("Starting data transformation process...")
+    for orgunit in orgunits:
+        print(f"Processing organisation unit: {orgunit['name']} (ID: {orgunit['id']})")
+
+        if os.path.exists(f"results/transform_module/{orgunit['id']}/valid_data.txt") is False:
+            print(f"⚠️ No valid data for organisation unit {orgunit['name']}. Skipping transformation.")
+            continue
+
+        print("Loading valid data for transformation...")
+        with open(f"results/transform_module/{orgunit['id']}/valid_data.txt", "r", encoding="utf8") as f:
+            valid_data = json.load(f)
+        print(f"Valid data loaded: {len(valid_data)} records")
+
+        print(f"Transforming data...")
+        tracked_entities = []
+        events_to_create = []
+        for record in valid_data:
+            matrix_event = record['matrix']
+            beneficiario = record['beneficiario']
+
+            matrix_event_data_value_dict = {dv['dataElement']: dv for dv in matrix_event.get('dataValues', [])}
+            beneficiario['attributes'].extend(generating_attributes(matrix_event_data_value_dict=matrix_event_data_value_dict, mapping=mapping))
+
+            beneficiario_events = generate_events(matrix_event_data_value_dict=matrix_event_data_value_dict, mapping=mapping, beneficiario=beneficiario)
+            
+            tracked_entities.append(beneficiario)
+            events_to_create.extend(beneficiario_events)
+    
+        with open(f"results/transform_module/{orgunit['id']}/tracked_entities.txt", "w", encoding="utf8") as f:
+            json.dump(tracked_entities, f)
+
+        with open(f"results/transform_module/{orgunit['id']}/events_to_create.txt", "w", encoding="utf8") as f:
+            json.dump(events_to_create, f)
+
+        
+        print(f"Total tracked entities to create/update: {len(tracked_entities)} for organisation unit {orgunit['name']}")
+        print(f"Total events to create: {len(events_to_create)} for organisation unit {orgunit['name']}")
+
+        print(f"Data transformation completed for organisation unit {orgunit['name']}.", "\n")
+
+
+
+
+    process_data(orgunits=orgunits)
+    print("Data transformation completed.")
+
+
+
 def execute():
 
     orgunits = extract_data.get_organisation_units_based_on_level()
