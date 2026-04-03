@@ -230,7 +230,7 @@ def generated_event_date(data_values: list):
 
 
 
-def generate_events(matrix_event_data_value_dict:dict, mapping:dict, beneficiario:dict):
+def generate_events(matrix_event_data_value_dict:dict, mapping:dict, beneficiario:dict, original_event:dict=None):
 
     events = []
 
@@ -242,9 +242,9 @@ def generate_events(matrix_event_data_value_dict:dict, mapping:dict, beneficiari
             is_valid = is_mapping_event_valid(matrix_event_data_value_dict=matrix_event_data_value_dict, event_mapping=mapping_event)
             if is_valid:
                 new_event = {
-                    "program": mapping_event['programId'],
-                    "programStage": mapping_event['programStageId'],
-                    "orgUnit": mapping_event['orgUnitId'],
+                    "program": program_stage_mapping['programId'],
+                    "programStage": program_stage_mapping['programStageId'],
+                    "orgUnit": original_event['orgUnit'],
                     "trackedEntity": beneficiario['trackedEntity'],
                     "dataValues": generating_data_values(matrix_event_data_value_dict=matrix_event_data_value_dict, data_values_mapping=mapping_event.get('mapping', [])),
                 }
@@ -284,7 +284,7 @@ def transform_data(orgunits: list):
             matrix_event_data_value_dict = {dv['dataElement']: dv for dv in matrix_event.get('dataValues', [])}
             beneficiario['attributes'].extend(generating_attributes(matrix_event_data_value_dict=matrix_event_data_value_dict, mapping=mapping))
 
-            beneficiario_events = generate_events(matrix_event_data_value_dict=matrix_event_data_value_dict, mapping=mapping, beneficiario=beneficiario)
+            beneficiario_events = generate_events(matrix_event_data_value_dict=matrix_event_data_value_dict, mapping=mapping, beneficiario=beneficiario, original_event=matrix_event)
             
             tracked_entities.append(beneficiario)
             events_to_create.extend(beneficiario_events)
