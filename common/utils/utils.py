@@ -49,7 +49,7 @@ def set_logger(log_file:str):
 
 def create_default_folders():
 
-    folders = ["logs", "results"]
+    folders = ["logs", "results", "mappings/data_mappings", "mappings/location_mappings", "mappings/relationship_mappings"]
 
     for folder in folders:
         os.makedirs(folder, exist_ok=True)

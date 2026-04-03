@@ -3,6 +3,10 @@ from ui.home import create_home_frame
 from ui.configuration import create_configuration_frame
 from ui.harmonization import create_harmonization_frame
 from ui.data_exchange import create_data_exchange_frame
+from ui.data_mapping_ui import create_data_mapping_frame
+from ui.location_mapping_ui import create_location_mapping_frame
+from ui.relationship_mapping_ui import create_relationship_mapping_frame
+from ui.mappings_hub import create_mappings_hub_frame
 
 
 class App(ctk.CTk):
@@ -24,6 +28,10 @@ class App(ctk.CTk):
         self.frames["configuration"] = create_configuration_frame(self, self.show_frame)
         self.frames["harmonization"] = create_harmonization_frame(self, self.show_frame)
         self.frames["data_exchange"] = create_data_exchange_frame(self, self.show_frame)
+        self.frames["mappings_hub"] = create_mappings_hub_frame(self, self.show_frame)
+        self.frames["data_mapping"] = create_data_mapping_frame(self, self.show_frame)
+        self.frames["location_mapping"] = create_location_mapping_frame(self, self.show_frame)
+        self.frames["relationship_mapping"] = create_relationship_mapping_frame(self, self.show_frame)
 
         for frame in self.frames.values():
             frame.place(relx=0, rely=0, relwidth=1, relheight=1)

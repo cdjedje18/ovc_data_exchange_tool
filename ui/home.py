@@ -24,6 +24,7 @@ def create_home_frame(parent, show_frame):
         return c
 
     make_card("Configuration", "configuration")
+    make_card("Mappings", "mappings_hub")
     make_card("Harmonization", "harmonization")
     make_card("Data Exchange", "data_exchange")
 
