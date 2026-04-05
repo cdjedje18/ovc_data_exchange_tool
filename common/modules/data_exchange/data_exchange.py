@@ -3,6 +3,7 @@ import logging
 from dhis2_client.errors import DHIS2HTTPError
 import urllib3
 from common import constants
+from common.modules.data_exchange import handle_transfomation
 from common.utils import utils
 import os
 import json
@@ -40,7 +41,7 @@ def generate_endpoint(program:dict):
 def generate_fields(program:dict):
 
     if program['programType'] == constants.TRACKER_PROGRAM_TYPE:
-      return "*,!relationships,enrollments[*,!events,!attributes]"
+      return "*,!createdBy,!updatedBy,!relationships,enrollments[*,events[*,!createdBy,!updatedBy],!attributes]"
 
     if program['programType'] == constants.EVENT_PROGRAM_TYPE:
       return "*"
@@ -133,6 +134,19 @@ def downloading_data_events(endpoint: str, fields: str, page: int, execution_con
 
     print(f"✅ {len(results[endpoint]) if endpoint in results else len(results[constants.INSTANCES])} Data downloaded")
     return results
+
+
+
+def downloading_relationships_data(endpoint: str, fields: str, page: int, execution_config: DataExchangeExecutionConfig, client: DHIS2Client = None) -> dict:
+
+    # logger = get_logger()
+    # logging.info(f"Download TEIs")
+    
+    results = client.get(f"/api/tracker/{endpoint}.json", params={"program": execution_config.program['id'], "ouMode": "ALL", "page": page, "fields": fields, "pageSize": execution_config.page_size})
+    # print(results)
+
+    print(f"✅ {len(results[endpoint]) if endpoint in results else len(results[constants.INSTANCES])} Data downloaded")
+    return results
     
 
 
@@ -159,6 +173,8 @@ def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_
     fields_tracker = generate_fields(execution_config.program)
     program_pager_tracker = get_total_data(program=execution_config.program['id'], endpoint=endpoint_tracker, page_size=execution_config.page_size, client=origin_client)
 
+    orgunit_mapping_dict = {ou_mapping_item['sourceOrgUnit']: ou_mapping_item['targetOrgUnit'] for ou_mapping_item in execution_config.orgunit_mapping.get("mappings", [])} if execution_config.orgunit_mapping else None
+
     folder_tracker = f"control/data_exchange/{execution_config.program['id']}/tracker/{execution_config.page_size}"
     os.makedirs(folder_tracker, exist_ok=True)
 
@@ -170,9 +186,9 @@ def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_
             print(f"Downloading tracked entities for program {execution_config.program['name']}: page {page} / {program_pager_tracker['pageCount']}")
             data = downloading_data_tracked_entities(endpoint=endpoint_tracker, fields=fields_tracker, page=page, execution_config=execution_config, client=origin_client)
             
-            data_to_send = {
-                "trackedEntities": data[endpoint_tracker] if endpoint_tracker in data else data[constants.INSTANCES]  
-            }
+            data_to_transform =  data[endpoint_tracker] if endpoint_tracker in data else data[constants.INSTANCES]
+            data_to_send = { "trackedEntities": handle_transfomation.transform_tracker_payload(source_payload=data_to_transform, execution_config=execution_config, orgunit_mapping_hash=orgunit_mapping_dict)}
+
             print(f"Sending tracked entities to destiny server for program {execution_config.program['name']}: page {page} / {program_pager_tracker['pageCount']}")
             send_result = send_data_to_destiny(data=data_to_send, execution_config=execution_config, client=destiny_client)
             print("\n")
@@ -191,6 +207,8 @@ def handle_event(execution_config: DataExchangeExecutionConfig, origin_client: D
     fields_event = generate_fields(execution_config.program)
     program_pager_event = get_total_data(program=execution_config.program['id'], endpoint=endpoint_event, page_size=execution_config.page_size, client=origin_client)
 
+    orgunit_mapping_dict = {ou_mapping_item['sourceOrgUnit']: ou_mapping_item['targetOrgUnit'] for ou_mapping_item in execution_config.orgunit_mapping.get("mappings", [])} if execution_config.orgunit_mapping else None
+
     folder_event = f"control/data_exchange/{execution_config.program['id']}/event/{execution_config.page_size}"
     os.makedirs(folder_event, exist_ok=True)
 
@@ -201,9 +219,9 @@ def handle_event(execution_config: DataExchangeExecutionConfig, origin_client: D
                 continue
             print(f"Downloading events for program {execution_config.program['name']}: page {page} / {program_pager_event['pageCount']}")
             data = downloading_data_events(endpoint=endpoint_event, fields=fields_event, page=page, execution_config=execution_config, client=origin_client)
-            data_to_send = {
-                "events": data[endpoint_event] if endpoint_event in data else data[constants.INSTANCES]
-            }
+            data_to_transform =  data[endpoint_event] if endpoint_event in data else data[constants.INSTANCES]
+            data_to_send = { "events": handle_transfomation.transform_event_payload(source_payload=data_to_transform, execution_config=execution_config, orgunit_mapping_hash=orgunit_mapping_dict)}
+            
             print(f"Sending events to destiny server for program {execution_config.program['name']}: page {page} / {program_pager_event['pageCount']}")
             send_result = send_data_to_destiny(data=data_to_send, execution_config=execution_config, client=destiny_client)
             print("\n")
@@ -223,8 +241,7 @@ def execute(execution_config: DataExchangeExecutionConfig):
     if execution_config.program['programType'] == constants.TRACKER_PROGRAM_TYPE:
         # Tracker part
         handle_tracked_entity(execution_config=execution_config, origin_client=origin_client, destiny_client=destiny_client)
-        handle_event(execution_config=execution_config, origin_client=origin_client, destiny_client=destiny_client)
-    
+        
     if execution_config.program['programType'] == constants.EVENT_PROGRAM_TYPE:
         handle_event(execution_config=execution_config, origin_client=origin_client, destiny_client=destiny_client)
 
