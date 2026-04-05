@@ -15,6 +15,8 @@ class DataExchangeExecutionConfig:
     program: dict
     page_size: int
     async_import: bool
+    variable_mapping: dict = None
+    orgunit_mapping: dict = None
 
 
 
