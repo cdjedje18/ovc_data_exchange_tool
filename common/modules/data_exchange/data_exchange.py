@@ -16,6 +16,7 @@ class DataExchangeExecutionConfig:
     program: dict
     page_size: int
     async_import: bool
+    include_relationships: bool = False
     variable_mapping: dict = None
     orgunit_mapping: dict = None
 
@@ -38,9 +39,13 @@ def generate_endpoint(program:dict):
     raise ValueError("Endpoint not correct defiend in config file")
 
 
-def generate_fields(program:dict):
+def generate_fields(program:dict, execution_config: DataExchangeExecutionConfig = None):
 
     if program['programType'] == constants.TRACKER_PROGRAM_TYPE:
+      
+      if execution_config and execution_config.include_relationships:
+          return "*,!createdBy,!updatedBy,relationships[relationship,relationshipType,from[trackedEntity[trackedEntity]],to[trackedEntity[trackedEntity]]],enrollments[*,events[*,!createdBy,!updatedBy],!attributes]"
+
       return "*,!createdBy,!updatedBy,!relationships,enrollments[*,events[*,!createdBy,!updatedBy],!attributes]"
 
     if program['programType'] == constants.EVENT_PROGRAM_TYPE:

@@ -1,0 +1,77 @@
+{
+    "name": "Sample Mapping 1",
+    "source": {
+        "programId": "SOURCE_PROGRAM_UID_HERE",
+        "type": "tracker"
+    },
+    "target": {
+        "programId": "pVgO58r40Au"
+    },
+    "teiAttributeMappings": [
+        {
+            "source": {
+                "type": "dataElement",
+                "id": "gFWioX5sFdb",
+                "name": "Data de Inscrição (MRP)",
+                "programStageId": ""
+            },
+            "target": {
+                "id": "UHxg1UItBKx",
+                "name": "OVC | Data de Inscrição (MRP)"
+            },
+            "optionMapping": [
+                {
+                    "sourceOption": "Sim",
+                    "targetOption": "Sim"
+                },
+                {
+                    "sourceOption": "Não",
+                    "targetOption": "Não"
+                }
+            ]
+        },
+        {
+            "source": {
+                "type": "default",
+                "value": true
+            },
+            "target": {
+                "id": "je2fRCtUN0e",
+                "name": "É membro principal"
+            }
+        }
+    ],
+    "programStageMappings": [
+        {
+            "source": {
+                "programStageId": "SOURCE_PROGRAM_STAGE_UID_HERE",
+                "name": "SOURCE_PROGRAM_STAGE_NAME_HERE"
+            },
+            "target": {
+                "programStageId": "pVgO58r40Au",
+                "name": "pVgO58r40Au"
+            },
+            "mapping": [
+                {
+                    "source": {
+                        "type": "dataElement",
+                        "id": "xnrwnYnUYPx",
+                        "name": "Data da Testagem 1º PCR"
+                    },
+                    "target": {
+                        "id": "xnrwnYnUYPx"
+                    }
+                },
+                {
+                    "source": {
+                        "type": "default",
+                        "value": "1 Teste"
+                    },
+                    "target": {
+                        "id": "xnrwnYnUYPx"
+                    }
+                }
+            ]
+        }
+    ]
+}
