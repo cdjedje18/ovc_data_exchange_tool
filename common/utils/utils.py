@@ -15,6 +15,16 @@ def get_config_file():
 
 
 
+def get_evaluator_criterias():
+
+    f = open("evaluator_criterias.json", "r", encoding="utf8")
+    config = json.loads(f.read())
+    f.close()
+
+    return config
+
+
+
 def get_harmonization_file():
 
     f = open("harmonization_programs.json", "r", encoding="utf8")
