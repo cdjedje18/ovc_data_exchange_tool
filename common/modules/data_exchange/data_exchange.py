@@ -19,6 +19,7 @@ class DataExchangeExecutionConfig:
     include_relationships: bool = False
     variable_mapping: dict = None
     orgunit_mapping: dict = None
+    relationship_mapping: dict = None
 
 
 
@@ -179,6 +180,7 @@ def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_
     program_pager_tracker = get_total_data(program=execution_config.program['id'], endpoint=endpoint_tracker, page_size=execution_config.page_size, client=origin_client)
 
     orgunit_mapping_dict = {ou_mapping_item['sourceOrgUnit']: ou_mapping_item['targetOrgUnit'] for ou_mapping_item in execution_config.orgunit_mapping.get("mappings", [])} if execution_config.orgunit_mapping else None
+    relationship_mapping_dict = {mapping_item['source']: mapping_item['target'] for mapping_item in execution_config.relationship_mapping.get("mappings", [])} if execution_config.relationship_mapping else None
 
     folder_tracker = f"control/data_exchange/{execution_config.program['id']}/tracker/{execution_config.page_size}"
     os.makedirs(folder_tracker, exist_ok=True)
@@ -192,7 +194,7 @@ def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_
             data = downloading_data_tracked_entities(endpoint=endpoint_tracker, fields=fields_tracker, page=page, execution_config=execution_config, client=origin_client)
             
             data_to_transform =  data[endpoint_tracker] if endpoint_tracker in data else data[constants.INSTANCES]
-            data_to_send = { "trackedEntities": handle_transfomation.transform_tracker_payload(source_payload=data_to_transform, execution_config=execution_config, orgunit_mapping_hash=orgunit_mapping_dict)}
+            data_to_send = { "trackedEntities": handle_transfomation.transform_tracker_payload(source_payload=data_to_transform, execution_config=execution_config, orgunit_mapping_hash=orgunit_mapping_dict, relationship_mapping_hash=relationship_mapping_dict)}
 
             print(f"Sending tracked entities to destiny server for program {execution_config.program['name']}: page {page} / {program_pager_tracker['pageCount']}")
             send_result = send_data_to_destiny(data=data_to_send, execution_config=execution_config, client=destiny_client)

@@ -18,6 +18,25 @@ def _get_orgunit_from_mapping_hash(source_orgunit: str, orgunit_mapping_hash: di
 
 
 
+def _generate_relationships_from_mapping_hash(source_relationships: list, relationship_mapping_hash: dict | None) -> str:
+    
+    if relationship_mapping_hash is None:
+        return source_relationships
+
+    new_relationships = []
+    for rel in source_relationships:
+        rel_id = rel.get("relationshipType")
+
+        if relationship_mapping_hash and rel_id in relationship_mapping_hash:
+            new_relationships.append({
+                **rel,
+                "relationshipType": relationship_mapping_hash[rel_id]
+            })
+
+    return new_relationships if new_relationships else -1
+
+
+
 def _get_value_from_mapping(source_value: Any, mapping_item: dict) -> Any:
     
     if "optionMapping" not in mapping_item:
@@ -153,7 +172,8 @@ def _transform_mapped_events(
 def transform_single_tei(
     source_tei: dict,
     data_mapping: dict,
-    orgunit_mapping_hash: dict
+    relationship_mapping_hash: dict | None,
+    orgunit_mapping_hash: dict | None
 ) -> dict:
     
 
@@ -164,6 +184,7 @@ def transform_single_tei(
             source_tei=source_tei,
             attribute_mappings=data_mapping.get("teiAttributeMappings", [])
         ),
+        "relationships": _generate_relationships_from_mapping_hash(source_relationships=source_tei.get("relationships", []), relationship_mapping_hash=relationship_mapping_hash) if source_tei.get("relationships") else [],
         "enrollments": [
             {
                 **enrollment,
@@ -206,7 +227,8 @@ def transform_single_event(
 def transform_tracker_payload(
     source_payload: dict,
     execution_config: DataExchangeExecutionConfig = None,
-    orgunit_mapping_hash: dict = None
+    orgunit_mapping_hash: dict = None,
+    relationship_mapping_hash: dict = None
 ) -> dict:
     
     data_mapping = execution_config.variable_mapping
@@ -218,7 +240,7 @@ def transform_tracker_payload(
 
     new_tracked_entities = []
     for source_tei in tracked_entities:
-        transformed = transform_single_tei(source_tei=source_tei, data_mapping=data_mapping, orgunit_mapping_hash=orgunit_mapping_hash)
+        transformed = transform_single_tei(source_tei=source_tei, data_mapping=data_mapping, relationship_mapping_hash=relationship_mapping_hash, orgunit_mapping_hash=orgunit_mapping_hash)
         new_tracked_entities.append(transformed)
         
     return new_tracked_entities
