@@ -248,7 +248,7 @@ def generate_events(matrix_event_data_value_dict:dict, mapping:dict, beneficiari
                     "trackedEntity": beneficiario['trackedEntity'],
                     "dataValues": generating_data_values(matrix_event_data_value_dict=matrix_event_data_value_dict, data_values_mapping=mapping_event.get('mapping', [])),
                 }
-                new_event['occureddAt'] = generated_event_date(data_values=new_event['dataValues'])
+                new_event['occuredAt'] = generated_event_date(data_values=new_event['dataValues'])
                 events.append(new_event)
                 
 

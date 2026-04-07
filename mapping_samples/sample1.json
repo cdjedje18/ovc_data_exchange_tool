@@ -1,4 +1,5 @@
 {
+    "name": "Sample Mapping 1",
     "source": {
         "programId": "SOURCE_PROGRAM_UID_HERE",
         "type": "tracker"
