@@ -3,8 +3,7 @@ import json
 import copy
 from collections import defaultdict
 import uuid
-
-from common.modules.data_exchange.data_exchange import DataExchangeExecutionConfig
+from common.modules.mixins.DataExchangeExecutionConfig import DataExchangeExecutionConfig
 
 
 

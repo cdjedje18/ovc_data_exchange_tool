@@ -7,19 +7,20 @@ from common.modules.data_exchange import handle_transfomation
 from common.utils import utils
 import os
 import json
-from dataclasses import dataclass
+# from dataclasses import dataclass
 import shutil
+from common.modules.mixins.DataExchangeExecutionConfig import DataExchangeExecutionConfig
 
 
-@dataclass
-class DataExchangeExecutionConfig:
-    program: dict
-    page_size: int
-    async_import: bool
-    include_relationships: bool = False
-    variable_mapping: dict = None
-    orgunit_mapping: dict = None
-    relationship_mapping: dict = None
+# @dataclass
+# class DataExchangeExecutionConfig:
+#     program: dict
+#     page_size: int
+#     async_import: bool
+#     include_relationships: bool = False
+#     variable_mapping: dict = None
+#     orgunit_mapping: dict = None
+#     relationship_mapping: dict = None
 
 
 
