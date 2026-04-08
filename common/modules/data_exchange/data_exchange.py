@@ -174,6 +174,19 @@ def send_data_to_destiny(data: dict, execution_config: DataExchangeExecutionConf
 
 
 
+def reset_data_folder(program_id: str):
+
+    data_folder = f"control/data_exchange/{program_id}"
+
+    if os.path.exists(data_folder): 
+        shutil.rmtree(data_folder) 
+        print(f"✅ Data folder for program {program_id} reset successfully")
+    else:
+        print(f"⚠️ Data folder for program {program_id} does not exist, nothing to reset")
+
+
+
+
 def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_client: DHIS2Client, destiny_client: DHIS2Client):
 
     endpoint_tracker = generate_endpoint(execution_config.program)
@@ -183,7 +196,7 @@ def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_
     orgunit_mapping_dict = {ou_mapping_item['sourceOrgUnit']: ou_mapping_item['targetOrgUnit'] for ou_mapping_item in execution_config.orgunit_mapping.get("mappings", [])} if execution_config.orgunit_mapping else None
     relationship_mapping_dict = {mapping_item['source']: mapping_item['target'] for mapping_item in execution_config.relationship_mapping.get("mappings", [])} if execution_config.relationship_mapping else None
 
-    folder_tracker = f"control/data_exchange/{execution_config.program['id']}/tracker/{execution_config.page_size}"
+    folder_tracker = f"control/data_exchange/{execution_config.program['id']}/data/{execution_config.page_size}"
     os.makedirs(folder_tracker, exist_ok=True)
 
     if program_pager_tracker['pageCount'] > 0:
@@ -196,6 +209,9 @@ def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_
             
             data_to_transform =  data[endpoint_tracker] if endpoint_tracker in data else data[constants.INSTANCES]
             data_to_send = { "trackedEntities": handle_transfomation.transform_tracker_payload(source_payload=data_to_transform, execution_config=execution_config, orgunit_mapping_hash=orgunit_mapping_dict, relationship_mapping_hash=relationship_mapping_dict)}
+
+            with open(f"{folder_tracker}/{page}_original.txt", "w", encoding="utf8") as f:
+                f.write(json.dumps(data_to_transform))
 
             print(f"Sending tracked entities to destiny server for program {execution_config.program['name']}: page {page} / {program_pager_tracker['pageCount']}")
             send_result = send_data_to_destiny(data=data_to_send, execution_config=execution_config, client=destiny_client)
@@ -217,7 +233,7 @@ def handle_event(execution_config: DataExchangeExecutionConfig, origin_client: D
 
     orgunit_mapping_dict = {ou_mapping_item['sourceOrgUnit']: ou_mapping_item['targetOrgUnit'] for ou_mapping_item in execution_config.orgunit_mapping.get("mappings", [])} if execution_config.orgunit_mapping else None
 
-    folder_event = f"control/data_exchange/{execution_config.program['id']}/event/{execution_config.page_size}"
+    folder_event = f"control/data_exchange/{execution_config.program['id']}/data/{execution_config.page_size}"
     os.makedirs(folder_event, exist_ok=True)
 
     if program_pager_event['pageCount'] > 0:

@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from common.modules.data_exchange.data_exchange import get_programs, DataExchangeExecutionConfig, execute
+from common.modules.data_exchange.data_exchange import get_programs, DataExchangeExecutionConfig, execute, reset_data_folder
 from core.data_mapping.data_mapping import list_mappings as list_data_mappings, read_mapping as read_data_mapping
 from core.location_mapping.location_mapping import list_mappings as list_location_mappings, read_mapping as read_location_mapping
 from core.relationship_mapping.relationship_mapping import list_mappings as list_relationship_mappings, read_mapping as read_relationship_mapping
@@ -147,8 +147,21 @@ def create_data_exchange_frame(parent, show_frame):
     run_button = ctk.CTkButton(form_frame, text="Run Data Exchange", width=180)
     run_button.grid(row=7, column=0, columnspan=2, pady=15)
 
+    def reset_program_logs():
+        if not selected_program.get() or selected_program.get().startswith("<failed"):
+            append_log("[ERROR] Program must be selected and loaded correctly")
+            return
+
+        sel = selected_program.get()
+        program_id = sel.split("(")[-1].strip(")") if "(" in sel else sel
+        reset_data_folder(program_id)
+        append_log(f"[INFO] Data logs reset for program {program_id}")
+
+    reset_button = ctk.CTkButton(form_frame, text="Reset Data Logs", width=180, command=reset_program_logs)
+    reset_button.grid(row=8, column=0, columnspan=2, pady=(0, 8))
+
     clear_button = ctk.CTkButton(form_frame, text="Clear Prints", width=180, command=lambda: log_text.delete('1.0', 'end'))
-    clear_button.grid(row=8, column=0, columnspan=2, pady=(0, 15))
+    clear_button.grid(row=9, column=0, columnspan=2, pady=(0, 15))
 
     # Right log area
     log_frame = ctk.CTkFrame(content)
