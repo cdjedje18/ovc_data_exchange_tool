@@ -273,8 +273,13 @@ def execute(execution_config: DataExchangeExecutionConfig):
 
 if __name__ == "__main__":
     execution_config = DataExchangeExecutionConfig(
-        program=utils.get_config_file()['otherPrograms'][0],
-        page_size=utils.get_config_file()['teiDownloadPageSize'],
-        async_import=True)
+        program=utils.get_harmonization_file()['otherPrograms'][0],
+        page_size=1,
+        variable_mapping=None,
+        orgunit_mapping=None,
+        relationship_mapping=None,
+        async_import=False,
+        include_relationships=False,
+    )
     
     execute(execution_config=execution_config)

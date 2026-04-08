@@ -224,7 +224,7 @@ def transform_single_event(
 
 
 def transform_tracker_payload(
-    source_payload: dict,
+    source_payload: list,
     execution_config: DataExchangeExecutionConfig = None,
     orgunit_mapping_hash: dict = None,
     relationship_mapping_hash: dict = None
@@ -233,9 +233,9 @@ def transform_tracker_payload(
     data_mapping = execution_config.variable_mapping
 
     if not data_mapping:
-        return source_payload.get("trackedEntities", [])  # No mapping provided, return as is
+        return source_payload # No mapping provided, return as is
 
-    tracked_entities = source_payload.get("trackedEntities", [])
+    tracked_entities = source_payload
 
     new_tracked_entities = []
     for source_tei in tracked_entities:

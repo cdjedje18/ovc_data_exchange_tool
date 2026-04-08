@@ -6,18 +6,19 @@ from common.utils import utils
 
 def execute():
 
-    config = utils.get_config_file()
     harmonize_config = utils.get_harmonization_file()
-    # print(harmonize_config['otherPrograms'])
-
-    # print(config)
-
+  
     data_exchange.clear_data_exchange_folder(program_id=harmonize_config['otherPrograms'][0]['id'])
 
     execution_config = data_exchange.DataExchangeExecutionConfig(
         program=harmonize_config['otherPrograms'][0],
-        page_size=config['teiDownloadPageSize'],
-        async_import=False)
+        page_size=1,
+        variable_mapping=None,
+        orgunit_mapping=None,
+        relationship_mapping=None,
+        async_import=False,
+        include_relationships=False
+    )
 
     data_exchange.execute(execution_config=execution_config)
 
