@@ -143,13 +143,13 @@ def _generate_event_data_values(
 
 def _transform_mapped_events(
     source_events: List[dict],
-    stage_mapping: dict,
+    stage_mappings: dict,
     orgunit_mapping_hash: dict = None
 ) -> List[dict]:
     
     new_events = []
     for event in source_events:
-        program_stage_mapping = get_program_stage_mapping_for_event(event, stage_mapping.get("programStageMappings", []))
+        program_stage_mapping = get_program_stage_mapping_for_event(event, stage_mappings.get("programStageMappings", []))
 
         if program_stage_mapping is None:
             new_events.append(event)
@@ -181,8 +181,8 @@ def transform_single_tei(
         "orgUnit":  _get_orgunit_from_mapping_hash(source_tei.get("orgUnit"), orgunit_mapping_hash),
         "attributes": _generate_tei_attributes(
             source_tei=source_tei,
-            attribute_mappings=data_mapping.get("teiAttributeMappings", [])
-        ),
+            tei_attribute_mappings=data_mapping.get("teiAttributeMappings", [])
+        ) if data_mapping.get("teiAttributeMappings") else source_tei.get("attributes", []),
         "relationships": _generate_relationships_from_mapping_hash(source_relationships=source_tei.get("relationships", []), relationship_mapping_hash=relationship_mapping_hash) if source_tei.get("relationships") else [],
         "enrollments": [
             {

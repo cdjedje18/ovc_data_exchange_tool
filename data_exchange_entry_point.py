@@ -1,3 +1,5 @@
+import json
+
 from common.modules.data_exchange import data_exchange
 from common.utils import utils
 
@@ -10,10 +12,13 @@ def execute():
   
     data_exchange.clear_data_exchange_folder(program_id=harmonize_config['otherPrograms'][0]['id'])
 
+    with open("mappings/data_mappings/Mapemanto_test.json", "r", encoding="utf8") as f:
+        data_mapping = json.loads(f.read())
+
     execution_config = data_exchange.DataExchangeExecutionConfig(
         program=harmonize_config['otherPrograms'][0],
-        page_size=1,
-        variable_mapping=None,
+        page_size=10,
+        variable_mapping=data_mapping,
         orgunit_mapping=None,
         relationship_mapping=None,
         async_import=False,

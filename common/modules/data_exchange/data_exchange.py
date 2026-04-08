@@ -208,10 +208,14 @@ def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_
             data = downloading_data_tracked_entities(endpoint=endpoint_tracker, fields=fields_tracker, page=page, execution_config=execution_config, client=origin_client)
             
             data_to_transform =  data[endpoint_tracker] if endpoint_tracker in data else data[constants.INSTANCES]
+            
+            # with open(f"{folder_tracker}/{page}_original.txt", "w", encoding="utf8") as f:
+            #     f.write(json.dumps(data_to_transform))
+            
             data_to_send = { "trackedEntities": handle_transfomation.transform_tracker_payload(source_payload=data_to_transform, execution_config=execution_config, orgunit_mapping_hash=orgunit_mapping_dict, relationship_mapping_hash=relationship_mapping_dict)}
 
-            with open(f"{folder_tracker}/{page}_original.txt", "w", encoding="utf8") as f:
-                f.write(json.dumps(data_to_transform))
+            # with open(f"{folder_tracker}/{page}_transformed.txt", "w", encoding="utf8") as f:
+            #     f.write(json.dumps(data_to_send))
 
             print(f"Sending tracked entities to destiny server for program {execution_config.program['name']}: page {page} / {program_pager_tracker['pageCount']}")
             send_result = send_data_to_destiny(data=data_to_send, execution_config=execution_config, client=destiny_client)
