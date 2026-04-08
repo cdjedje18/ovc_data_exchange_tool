@@ -1,0 +1,60 @@
+{
+    "nid": {
+        "source": [
+            {
+                "dataElement": "dqrgtT6GVF7",
+                "name": "NID"
+            },
+            {
+                "dataElement": "mvJZJVVtclN",
+                "name": "Novo NID"
+            },
+            {
+                "dataElement": "JjYqVlKOhJp",
+                "name": "NID CCR"
+            }
+        ],
+        "target": [
+            {
+                "attribute": "ZPKAQj86KBI",
+                "name": "NID"
+            },
+            {
+                "attribute": "coFfWIjsmyL",
+                "name": "NID Ajuda"
+            }
+        ]
+    },
+    "familyId": {
+        "attribute": "hXpyioqAugh",
+        "dataElement": "uWxJlxRdELE",
+        "secundaries": [
+            {
+                "attribute": "",
+                "dataElement": ""
+            },
+            {
+                "attribute": "",
+                "dataElement": ""
+            },
+            {
+                "attribute": "",
+                "dataElement": ""
+            }
+        ]
+    },
+    "demographic": [
+        {
+            "attribute": "",
+            "dataElement": ""
+        },
+        {
+            "attribute": "",
+            "dataElement": ""
+        },
+        {
+            "attribute": "",
+            "dataElement": ""
+        }
+    ]
+}

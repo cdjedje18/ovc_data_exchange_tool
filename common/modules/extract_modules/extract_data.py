@@ -84,6 +84,7 @@ def downloading_tracked_entities() -> list:
     """
 
     config = utils.get_config_file()
+    harmonization_programs = utils.get_harmonization_file()
 
     client = DHIS2Client(
         base_url=config['originServer']['url'],
@@ -97,7 +98,7 @@ def downloading_tracked_entities() -> list:
     page_size = config['teiDownloadPageSize'] if 'teiDownloadPageSize' in config else 500
 
 
-    for program in config['programs']:
+    for program in harmonization_programs['programs']:
 
         for orgunit in org_units: 
             

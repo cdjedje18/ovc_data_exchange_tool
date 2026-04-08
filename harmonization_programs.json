@@ -1,0 +1,27 @@
+{
+    "programs": [
+        {
+            "id": "pVgO58r40Au",
+            "name": "Seguimento Beneficiarios",
+            "type": "TRACKER"
+        },
+        {
+            "id": "coLY2kfLmlC",
+            "name": "Matrix",
+            "type": "EVENT"
+        },
+        {
+            "id": "iSPc45re0MZ",
+            "name": "Seguimento Familias",
+            "type": "TRACKER"
+        }
+    ],
+    "otherPrograms": [
+        {
+            "id": "iSPc45re0MZ",
+            "name": "Registo e seguimento de FAMÍLIAS",
+            "type": "TRACKER",
+            "programType": "WITH_REGISTRATION"
+        }
+    ]
+}
