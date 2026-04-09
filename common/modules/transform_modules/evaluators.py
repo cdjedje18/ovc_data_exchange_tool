@@ -2,6 +2,7 @@ import json
 import os
 
 import pandas as pd
+from common.modules.extract_modules.extract_data import get_organisation_units_based_on_level
 from common.utils import utils
 
 
@@ -239,35 +240,39 @@ def _normalize_report_value(value):
 
 
 
-def _collect_report_keys(matchs: list, report_structure: dict):
-    matrix_keys = []
-    beneficiary_keys = []
+def _build_report_column_mappings(report_structure: dict, matchs: list):
+    matrix_columns = []
+    beneficiary_columns = []
+
+    matrix_column_map = {}
+    beneficiary_column_map = {}
 
     for item in report_structure.get('headers', []):
         data_element = item.get('dataElement')
+        data_element_name = item.get('dataElementName') or data_element
         attribute = item.get('attribute')
+        attribute_name = item.get('attributeName') or attribute
 
-        if data_element and data_element not in matrix_keys:
-            matrix_keys.append(data_element)
-        if attribute and attribute not in beneficiary_keys:
-            beneficiary_keys.append(attribute)
+        if data_element and data_element not in matrix_column_map:
+            matrix_column_map[data_element] = data_element_name
+            matrix_columns.append(data_element_name)
 
-    for match in matchs:
-        event = match.get('matrix_event', {})
-        for key in event.get('hash_values', {}):
-            if key not in matrix_keys:
-                matrix_keys.append(key)
+        if attribute and attribute not in beneficiary_column_map:
+            beneficiary_column_map[attribute] = attribute_name
+            beneficiary_columns.append(attribute_name)
 
-        for beneficiary in match.get('beneficiaries', []):
-            for key in beneficiary.get('hash_values', {}):
-                if key not in beneficiary_keys:
-                    beneficiary_keys.append(key)
-
-    return matrix_keys, beneficiary_keys
+    return matrix_columns, beneficiary_columns, matrix_column_map, beneficiary_column_map
 
 
 
-def _build_report_rows(matchs: list, status: str, orgunit: dict, fieldnames: list[str]):
+def _build_report_rows(
+    matchs: list,
+    status: str,
+    orgunit: dict,
+    fieldnames: list[str],
+    matrix_column_map: dict,
+    beneficiary_column_map: dict,
+):
     rows = []
 
     for match in matchs:
@@ -286,12 +291,12 @@ def _build_report_rows(matchs: list, status: str, orgunit: dict, fieldnames: lis
             })
 
             for key, value in event.get('hash_values', {}).items():
-                column_name = f"matrix_{key}"
+                column_name = matrix_column_map.get(key)
                 if column_name in row:
                     row[column_name] = _normalize_report_value(value)
 
             for key, value in beneficiary.get('hash_values', {}).items():
-                column_name = f"beneficiary_{key}"
+                column_name = beneficiary_column_map.get(key)
                 if column_name in row:
                     row[column_name] = _normalize_report_value(value)
 
@@ -305,30 +310,47 @@ def generate_report(orgunit: dict, all_valid_matchs, all_non_valid_matchs):
     with open("harmonization_report_strucure.json", "r", encoding="utf8") as f:
         report_structure = json.load(f)
 
-    data_folder = f"results/transform_module/{orgunit['id']}"
+    data_folder = f"results/evaluator_module/{orgunit['id']}"
     pending_folder = os.path.join(data_folder, "pending")
 
     os.makedirs(data_folder, exist_ok=True)
     os.makedirs(pending_folder, exist_ok=True)
 
-    matrix_keys, beneficiary_keys = _collect_report_keys(all_valid_matchs + all_non_valid_matchs, report_structure)
+    matrix_columns, beneficiary_columns, matrix_column_map, beneficiary_column_map = _build_report_column_mappings(
+        report_structure,
+        all_valid_matchs + all_non_valid_matchs,
+    )
 
     fieldnames = [
+        'matrix_event_id',
+        'beneficiary_id',
         'status',
         'orgunit_id',
         'orgunit_name',
-        'matrix_event_id',
-        'beneficiary_id',
         'beneficiary_count',
     ]
-    fieldnames.extend(f"matrix_{key}" for key in matrix_keys)
-    fieldnames.extend(f"beneficiary_{key}" for key in beneficiary_keys)
-    fieldnames.extend(['matrix_event_payload', 'beneficiary_payload'])
+    fieldnames.extend(matrix_columns)
+    fieldnames.extend(beneficiary_columns)
+    # fieldnames.extend(['matrix_event_payload', 'beneficiary_payload'])
 
-    valid_rows = _build_report_rows(all_valid_matchs, 'valid', orgunit, fieldnames)
-    non_valid_rows = _build_report_rows(all_non_valid_matchs, 'non_valid', orgunit, fieldnames)
+    valid_rows = _build_report_rows(
+        all_valid_matchs,
+        'valid',
+        orgunit,
+        fieldnames,
+        matrix_column_map,
+        beneficiary_column_map,
+    )
+    non_valid_rows = _build_report_rows(
+        all_non_valid_matchs,
+        'non_valid',
+        orgunit,
+        fieldnames,
+        matrix_column_map,
+        beneficiary_column_map,
+    )
 
-    valid_report_path = os.path.join(data_folder, 'valid_matches_report.csv')
+    valid_report_path = os.path.join(pending_folder, 'valid_matches_report.csv')
     non_valid_report_path = os.path.join(pending_folder, 'non_valid_matches_report.csv')
 
     valid_df = pd.DataFrame(valid_rows, columns=fieldnames)
@@ -340,7 +362,10 @@ def generate_report(orgunit: dict, all_valid_matchs, all_non_valid_matchs):
 
 
 
-def execute(orgunits: list):
+def execute(orgunits: list | None):
+
+    if orgunits is None:
+        orgunits = get_organisation_units_based_on_level()
 
     for index, orgunit in enumerate(orgunits):
         print(f"Doing for organisation unit {orgunit['name']} ({index + 1}/{len(orgunits)})")

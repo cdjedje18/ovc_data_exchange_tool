@@ -1,6 +1,7 @@
 from dhis2_client import DHIS2Client
 import logging
 import urllib3
+from common import constants
 from common.utils import utils
 import os
 import json
@@ -15,10 +16,10 @@ def get_logger():
 
 def generate_endpoint(program:dict):
 
-    if program['type'] == "TRACKER":
+    if program['programType'] == constants.TRACKER_PROGRAM_TYPE:
       return "trackedEntities"
 
-    if program['type'] == "EVENT":
+    if program['programType'] == constants.EVENT_PROGRAM_TYPE:
       return "events"
     
     raise ValueError("Endpoint not correct defiend in config file")
@@ -26,10 +27,10 @@ def generate_endpoint(program:dict):
 
 def generate_fields(program:dict):
 
-    if program['type'] == "TRACKER":
+    if program['programType'] == constants.TRACKER_PROGRAM_TYPE:
       return "*,enrollments[*,!events,!attributes]"
 
-    if program['type'] == "EVENT":
+    if program['programType'] == constants.EVENT_PROGRAM_TYPE:
       return "*"
     
     raise ValueError("Endpoint not correct defiend in config file")
@@ -73,7 +74,7 @@ def get_total_data(program:str, endpoint:str, orgunit:str, page_size:int, client
 
 
 
-def downloading_tracked_entities() -> list:
+def downloading_tracked_entities(orgunits:list) -> list:
 
     logger = get_logger()
     logging.info(f"Download TEIs")
@@ -93,14 +94,13 @@ def downloading_tracked_entities() -> list:
         verify_ssl=False
     )
 
-    org_units = get_organisation_units_based_on_level()
+    # org_units = get_organisation_units_based_on_level()
 
     page_size = config['teiDownloadPageSize'] if 'teiDownloadPageSize' in config else 500
 
-
     for program in harmonization_programs['programs']:
 
-        for orgunit in org_units: 
+        for orgunit in orgunits: 
             
             print("Retrieving info for program:", program['name'], "for organisation unit:", orgunit['name'])
             endpoint = generate_endpoint(program=program)
@@ -132,9 +132,12 @@ def downloading_tracked_entities() -> list:
 
 
 
-def execute():
+def execute(orgunits:list | None):
 
-    downloading_tracked_entities()
+    if orgunits is None:
+        orgunits = get_organisation_units_based_on_level()
+
+    downloading_tracked_entities(orgunits=orgunits)
 
 
 
