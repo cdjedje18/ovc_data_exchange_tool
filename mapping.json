@@ -18,12 +18,7 @@
             "attributeName": "OVC | Outros motivos de não inscrição do beneficiário (MRP)",
             "attributeId": "CyN0JEMNUWC"
         },
-        {
-            "dataElementId": "Ux9C1nvRazb",
-            "dataElementName": "Porque o beneficiário não foi inscrito? MRP",
-            "attributeName": "OVC | Porque o beneficiário não foi inscrito? MRP",
-            "attributeId": "MDDiiF7aLdH"
-        },
+        
         {
             "defaultValue": true,
             "attributeName": "É membro principal",

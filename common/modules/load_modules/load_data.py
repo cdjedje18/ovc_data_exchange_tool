@@ -26,7 +26,7 @@ def send_data_to_destiny(data: dict, client: DHIS2Client):
 
     try:
         results = client.post(f"/api/tracker.json", json=data, params={"async": False})
-        # print(results)
+        print(results)
         return results
 
     except Exception as e:

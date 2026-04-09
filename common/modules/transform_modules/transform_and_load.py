@@ -226,7 +226,7 @@ def execute(orgunits:list | None):
 
     transform_data(orgunits=orgunits)
 
-    # load_data.execute(orgunits=orgunits)
+    load_data.execute(orgunits=orgunits)
 
     
 
