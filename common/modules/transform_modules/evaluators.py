@@ -211,6 +211,7 @@ def demographic_evaluation(matrix_data: list, beneficiaries: list, processed_tei
             processed_teis.update(beneficiary['trackedEntity'] for beneficiary in matches)
         elif len(matches) > 1:
             non_valid_matchs.append({'matrix_event': event, 'beneficiaries': matches})
+            processed_events.add(event['event'])
 
     return valid_matchs, non_valid_matchs, processed_events
 
@@ -361,6 +362,55 @@ def generate_report(orgunit: dict, all_valid_matchs, all_non_valid_matchs):
 
 
 
+def generate_report_non_processed_events(orgunit: dict, not_processed_events: list):
+    with open("harmonization_report_strucure.json", "r", encoding="utf8") as f:
+        report_structure = json.load(f)
+
+    data_folder = f"results/evaluator_module/{orgunit['id']}"
+    pending_folder = os.path.join(data_folder, "pending")
+
+    os.makedirs(data_folder, exist_ok=True)
+    os.makedirs(pending_folder, exist_ok=True)
+
+    report_path = os.path.join(pending_folder, 'not_processed_events.csv')
+
+    matrix_columns, _, matrix_column_map, _ = _build_report_column_mappings(report_structure, [])
+
+    fieldnames = ['event_id', 'orgunit_id', 'orgunit_name']
+    fieldnames.extend(matrix_columns)
+
+    rows = []
+    for event in not_processed_events:
+        row = {field: "" for field in fieldnames}
+        row.update({
+            'event_id': event.get('event', ''),
+            'orgunit_id': orgunit.get('id', ''),
+            'orgunit_name': orgunit.get('name', ''),
+        })
+
+        event_hash_values = event.get('hash_values') or {
+            value.get('dataElement'): value.get('value')
+            for value in event.get('dataValues', [])
+            if value.get('dataElement')
+        }
+
+        for key, value in event_hash_values.items():
+            column_name = matrix_column_map.get(key)
+            if column_name in row:
+                row[column_name] = _normalize_report_value(value)
+
+        rows.append(row)
+
+    df = pd.DataFrame(rows, columns=fieldnames)
+    df.to_csv(report_path, index=False, encoding='utf8')
+
+
+
+def get_not_processed_events(matrix_data: list, processed_events: set):
+    return [event for event in matrix_data if event['event'] not in processed_events]
+
+
+
 
 def execute(orgunits: list | None):
 
@@ -398,6 +448,8 @@ def execute(orgunits: list | None):
         valid_demographic_matchs, non_valid_demographic_matchs, demographic_processed_events = demographic_evaluation(remaining_matrix_data, beneficiary_data, processed_beneficiary_te_ids)
         processed_events.update(demographic_processed_events)
 
+        not_processed_events = get_not_processed_events(matrix_data, processed_events)
+
         all_valid_matchs, all_non_valid_matchs = process_evaluation_results(
             valid_nid_matchs,
             non_valid_nid_matchs,
@@ -408,6 +460,8 @@ def execute(orgunits: list | None):
         )
 
         generate_report(orgunit, all_valid_matchs, all_non_valid_matchs)
+
+        generate_report_non_processed_events(orgunit, not_processed_events)
 
 
 

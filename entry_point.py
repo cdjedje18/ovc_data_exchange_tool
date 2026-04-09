@@ -17,7 +17,7 @@ def execute():
 
     utils.create_default_folders()
     
-    # extract_data.execute(orgunits=None)
+    extract_data.execute(orgunits=None)
 
     evaluators.execute(orgunits=None)    
     
