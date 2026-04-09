@@ -19,7 +19,7 @@ def execute():
     
     # extract_data.execute(orgunits=None)
 
-    # evaluators.execute(orgunits=None)
+    evaluators.execute(orgunits=None)
     
     transform_and_load.execute(orgunits=None)
 
