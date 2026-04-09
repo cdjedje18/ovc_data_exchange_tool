@@ -61,9 +61,11 @@ def process_data(orgunit: dict):
     
 
 
-def execute():
+def execute(orgunits:list | None):
 
-    orgunits = extract_data.get_organisation_units_based_on_level()
+    if orgunits is None:
+        orgunits = extract_data.get_organisation_units_based_on_level()
+
     for orgunit in orgunits:
         # print(f"Processing orgunit: {orgunit['id']}")
         process_data(orgunit=orgunit)

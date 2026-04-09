@@ -5,7 +5,7 @@ import threading
 import customtkinter as ctk
 import sys
 from common.modules.extract_modules import extract_data
-from common.modules.transform_modules import transform_data, evaluators
+from common.modules.transform_modules import transform_data, evaluators, transform_and_load
 from common.modules.load_modules import load_data
 from common.utils import utils
 
@@ -19,11 +19,11 @@ def execute():
     
     extract_data.execute(orgunits=None)
 
-    evaluators.execute(orgunits=None)    
+    evaluators.execute(orgunits=None)
     
-    # transform_data.execute()
+    transform_and_load.execute(orgunits=None)
 
-    # load_data.execute()
+    # load_data.execute(orgunits=None)
     
 
 

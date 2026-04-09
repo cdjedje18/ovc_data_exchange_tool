@@ -1,29 +1,16 @@
 from dhis2_client import DHIS2Client
 import logging
+import pandas
 import urllib3
+from common import constants
 from common.utils import utils
 import os
 import json
 from common.modules.extract_modules import  extract_data
+from common.modules.load_modules import load_data
 
 
-NID_ATTRIBUTE_ID = "ZPKAQj86KBI"
-NID_AJUDA_ATTRIBUTE_ID = "coFfWIjsmyL"
-ID_FAMILY_ATTRIBUTE_ID = "hXpyioqAugh"
-
-
-NID_DATA_ELEMENT_ID = "dqrgtT6GVF7"
-NEW_NID_DATA_ELEMENT_ID = "mvJZJVVtclN"
-NID_CCR_DATA_ELEMENT_ID = "JjYqVlKOhJp"
-
-ID_FAMILY_DATA_ELEMENT_ID = "uWxJlxRdELE"
-
-BENEFICIARY_PROGRAM = {"id": "pVgO58r40Au", "name": "Beneficiary Program", "type": "TRACKER"}
-MATRIX_PROGRAM = {"id": "coLY2kfLmlC", "name": "Matrix Program", "type": "EVENT"}
-
-
-
-def load_data(orgunit, program):
+def load_local_data(orgunit, program):
     # print(orgunit, program)
     folder = f"results/extract_module/{orgunit['id']}/{program['id']}"
     if not os.path.exists(folder):
@@ -40,114 +27,6 @@ def load_data(orgunit, program):
                 if key in page_data:
                     data.extend(page_data[key])
     return data
-
-
-def group_data(data):
-    # data = load_data(orgunit, program)
-    valid_nid_teis = {}
-    processed = set()
-    # First pass: NID or NID ajuda
-    for item in data:
-        te_id = item['trackedEntity']
-        if te_id in processed:
-            continue
-        for attr in item['attributes']:
-            if attr['attribute'] in [NID_ATTRIBUTE_ID, NID_AJUDA_ATTRIBUTE_ID] and attr.get('value'):
-                nid_value = attr['value']
-                if nid_value not in valid_nid_teis:
-                    valid_nid_teis[nid_value] = []
-                valid_nid_teis[nid_value].append(item)
-                processed.add(te_id)
-                break
-
-
-    # Second pass: ID family for remaining
-    valid_family_id_teis = {}
-    for item in data:
-        te_id = item['trackedEntity']
-        if te_id in processed:
-            continue
-        for attr in item['attributes']:
-            if attr['attribute'] == ID_FAMILY_ATTRIBUTE_ID and attr.get('value'):
-                family_id_value = attr['value']
-                if family_id_value not in valid_family_id_teis:
-                    valid_family_id_teis[family_id_value] = []
-                valid_family_id_teis[family_id_value].append(item)
-                processed.add(te_id)
-                break
-
-    return valid_nid_teis, valid_family_id_teis
-
-
-
-def match_data(matrix_data, valid_nid_teis, valid_family_id_teis):
-    valid_data = []
-    non_valid_data = []
-    matched_events = set()
-    for event in matrix_data:
-        matched = False
-        # First, check NID dataElements
-        for de in [NID_DATA_ELEMENT_ID, NEW_NID_DATA_ELEMENT_ID, NID_CCR_DATA_ELEMENT_ID]:
-            for dv in event.get('dataValues', []):
-                if dv['dataElement'] == de and dv.get('value'):
-                    nid_val = dv['value']
-                    if nid_val in valid_nid_teis:
-                        teis = valid_nid_teis[nid_val]
-                        if len(teis) == 1:
-                            valid_data.append({'matrix': event, 'beneficiario': teis[0]})
-                        else:
-                            non_valid_data.append({'matrix': event['event'], 'beneficiario': [te['trackedEntity'] for te in teis]})
-                        matched_events.add(event['event'])
-                        matched = True
-                        break
-            if matched:
-                break
-            
-        if not matched and event['event'] not in matched_events:
-            # Check ID_FAMILY
-            for dv in event.get('dataValues', []):
-                if dv['dataElement'] == ID_FAMILY_DATA_ELEMENT_ID and dv.get('value'):
-                    family_val = dv['value']
-                    if family_val in valid_family_id_teis:
-                        teis = valid_family_id_teis[family_val]
-                        if len(teis) == 1:
-                            valid_data.append({'matrix': event, 'beneficiario': teis[0]})
-                        else:
-                            non_valid_data.append({'matrix': event['event'], 'beneficiario': [te['trackedEntity'] for te in teis]})
-                        break
-
-    return valid_data, non_valid_data
-
-
-
-def process_data(orgunits: list):
-
-    for orgunit in orgunits:
-
-        print("Initializing transformation for organisation unit:", orgunit['name'])
-        
-        beneficiary_data = load_data(orgunit, BENEFICIARY_PROGRAM)
-
-        if len(beneficiary_data) == 0:
-            print("\n")
-            continue
-
-        valid_nid_teis, valid_family_id_teis = group_data(beneficiary_data)
-        print(f"Valid TEIs with NID or NID Ajuda: {len(valid_nid_teis)}")
-        print(f"Valid TEIs with ID Family: {len(valid_family_id_teis)}")
-        print("\n")
-    
-        print("Retrieving data for Matrix program")
-        matrix_data = load_data(orgunit, MATRIX_PROGRAM)
-
-        match_data_result, non_valid_data = match_data(matrix_data=matrix_data, valid_nid_teis=valid_nid_teis, valid_family_id_teis=valid_family_id_teis)
-
-        data_folder = f"results/transform_module/{orgunit['id']}"
-        os.makedirs(data_folder, exist_ok=True)
-
-        with open(f"results/transform_module/{orgunit['id']}/valid_data.txt", "w", encoding="utf8") as f:
-            json.dump(match_data_result, f)
-
 
 
 
@@ -263,26 +142,56 @@ def transform_data(orgunits: list | None):
         orgunits = extract_data.get_organisation_units_based_on_level()
 
     mapping = utils.get_mapping_file()
+    programs = utils.get_harmonization_file().get("programs", [])
+
+    beneficiary_program = [program for program in programs if program['programType'] == constants.TRACKER_PROGRAM_TYPE][0]
+    matrix_program = [program for program in programs if program['programType'] == constants.EVENT_PROGRAM_TYPE][0]
 
     print("Starting data transformation process...")
     for orgunit in orgunits:
         print(f"Processing organisation unit: {orgunit['name']} (ID: {orgunit['id']})")
 
-        if os.path.exists(f"results/transform_module/{orgunit['id']}/valid_data.txt") is False:
-            print(f"⚠️ No valid data for organisation unit {orgunit['name']}. Skipping transformation.")
+        if not os.path.exists(f"results/evaluator_module/{orgunit['id']}/validated"):
+            print(f"⚠️ No validated data found for organisation unit {orgunit['name']}. Please run the evaluators module first. Skipping.")
             continue
 
+        beneficiarios_original_data = load_local_data(orgunit=orgunit, program=beneficiary_program)
+        matrix_original_data = load_local_data(orgunit=orgunit, program=matrix_program)
+
+        beneficiarios_dict = {beneficiario['trackedEntity']: beneficiario for beneficiario in beneficiarios_original_data}
+        matrix_dict = {event['event']: event for event in matrix_original_data}
+        
+
         print("Loading valid data for transformation...")
-        with open(f"results/transform_module/{orgunit['id']}/valid_data.txt", "r", encoding="utf8") as f:
-            valid_data = json.load(f)
-        print(f"Valid data loaded: {len(valid_data)} records")
+        validated_files = os.listdir(f"results/evaluator_module/{orgunit['id']}/validated")
+        
+        valid_data = []
+        for file in validated_files:
+            if not file.endswith('.csv'):
+                print(f"⚠️  File {file} in validated folder is not a csv file. Skipping.")
+                continue
+
+            valid_data_csv = pandas.read_csv(f"results/evaluator_module/{orgunit['id']}/validated/{file}")
+            for index, record in valid_data_csv.iterrows():
+                valid_data.append({
+                   'matrix_event_id':record['matrix_event_id'],
+                   'beneficiary_id':record['beneficiary_id']
+                })
+
 
         print(f"Transforming data...")
         tracked_entities = []
         events_to_create = []
-        for record in valid_data:
-            matrix_event = record['matrix']
-            beneficiario = record['beneficiario']
+        for index, record in enumerate(valid_data):  
+            matrix_event_id = record['matrix_event_id']
+            beneficiary_id = record['beneficiary_id']
+
+            if beneficiary_id not in beneficiarios_dict or matrix_event_id not in matrix_dict:
+                print(f"⚠️  Record with beneficiary_id {beneficiary_id} and matrix_event_id {matrix_event_id} not found in original data. Skipping.")
+                raise ValueError(f"Record with beneficiary_id {beneficiary_id} and matrix_event_id {matrix_event_id} not found in original data. Please download the data again")
+
+            matrix_event = matrix_dict[matrix_event_id]
+            beneficiario = beneficiarios_dict[beneficiary_id]
 
             matrix_event_data_value_dict = {dv['dataElement']: dv for dv in matrix_event.get('dataValues', [])}
             beneficiario['attributes'].extend(generating_attributes(matrix_event_data_value_dict=matrix_event_data_value_dict, mapping=mapping))
@@ -292,10 +201,13 @@ def transform_data(orgunits: list | None):
             tracked_entities.append(beneficiario)
             events_to_create.extend(beneficiario_events)
     
-        with open(f"results/transform_module/{orgunit['id']}/tracked_entities.txt", "w", encoding="utf8") as f:
+        data_folder = f"results/transform_module/{orgunit['id']}"
+        os.makedirs(data_folder, exist_ok=True)
+
+        with open(f"{data_folder}/tracked_entities.txt", "w", encoding="utf8") as f:
             json.dump(tracked_entities, f)
 
-        with open(f"results/transform_module/{orgunit['id']}/events_to_create.txt", "w", encoding="utf8") as f:
+        with open(f"{data_folder}/events_to_create.txt", "w", encoding="utf8") as f:
             json.dump(events_to_create, f)
 
         
@@ -304,18 +216,23 @@ def transform_data(orgunits: list | None):
 
         print(f"Data transformation completed for organisation unit {orgunit['name']}.", "\n")
 
-    process_data(orgunits=orgunits)
     print("Data transformation completed.")
 
 
 
-def execute():
+def execute(orgunits:list | None):
 
-    orgunits = extract_data.get_organisation_units_based_on_level()
-
-    process_data(orgunits=orgunits)
+    # orgunits = extract_data.get_organisatsion_units_based_on_level()
 
     transform_data(orgunits=orgunits)
+
+    # load_data.execute(orgunits=orgunits)
+
+    
+
+
+
+
 
 
 

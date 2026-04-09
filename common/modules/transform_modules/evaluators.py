@@ -368,9 +368,12 @@ def generate_report_non_processed_events(orgunit: dict, not_processed_events: li
 
     data_folder = f"results/evaluator_module/{orgunit['id']}"
     pending_folder = os.path.join(data_folder, "pending")
+    valid_folder = os.path.join(data_folder, "validated")
 
     os.makedirs(data_folder, exist_ok=True)
     os.makedirs(pending_folder, exist_ok=True)
+    os.makedirs(valid_folder, exist_ok=True)
+
 
     report_path = os.path.join(pending_folder, 'not_processed_events.csv')
 
