@@ -41,6 +41,9 @@
             }
         }
     ],
+    "skipProgramStages": [
+        "PROGRAM_STAGE_UID_TO_SKIP_HERE"
+    ],
     "programStageMappings": [
         {
             "source": {

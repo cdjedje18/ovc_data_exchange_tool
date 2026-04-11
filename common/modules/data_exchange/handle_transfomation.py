@@ -144,11 +144,16 @@ def _generate_event_data_values(
 def _transform_mapped_events(
     source_events: List[dict],
     stage_mappings: list,
+    skip_program_stages: list = None,
     orgunit_mapping_hash: dict = None
 ) -> List[dict]:
     
     new_events = []
     for event in source_events:
+
+        if skip_program_stages and event.get("programStage") in skip_program_stages:
+            continue
+
         program_stage_mapping = get_program_stage_mapping_for_event(event, stage_mappings)
 
         if program_stage_mapping is None:
@@ -191,6 +196,7 @@ def transform_single_tei(
                 "events": _transform_mapped_events(
                     source_events=enrollment.get("events", []),
                     stage_mappings=data_mapping.get("programStageMappings", []),
+                    skip_program_stages=data_mapping.get("skipProgramStages", []),
                     orgunit_mapping_hash=orgunit_mapping_hash
                 )
             } for enrollment in source_tei.get("enrollments", [])
