@@ -1,11 +1,38 @@
 import customtkinter as ctk
-from common.modules.data_exchange.data_exchange import get_programs, DataExchangeExecutionConfig, execute, reset_data_folder
+from common.modules.data_exchange.data_exchange import (
+    get_programs,
+    DataExchangeExecutionConfig,
+    execute,
+    reset_data_folder,
+)
 from core.data_mapping.data_mapping import list_mappings as list_data_mappings, read_mapping as read_data_mapping
 from core.location_mapping.location_mapping import list_mappings as list_location_mappings, read_mapping as read_location_mapping
 from core.relationship_mapping.relationship_mapping import list_mappings as list_relationship_mappings, read_mapping as read_relationship_mapping
+from core.helpers.orgunits import (
+    get_organisation_units_by_level,
+    get_organisation_units_by_parent_id,
+)
 import sys
 import threading
 import queue
+
+
+PROVINCE_LEVEL = 2
+DISTRICT_LEVEL = 3
+
+
+def _format_orgunit_option(orgunit: dict) -> str:
+    return f"{orgunit.get('name', '')} ({orgunit.get('id', '')})"
+
+
+def _extract_orgunit_id(option: str):
+    if not option or option.startswith("<"):
+        return None
+
+    if "(" in option and option.endswith(")"):
+        return option.rsplit("(", 1)[-1].rstrip(")")
+
+    return None
 
 
 def _get_mapping_options(list_method):
@@ -60,6 +87,8 @@ def create_data_exchange_frame(parent, show_frame):
     ctk.CTkLabel(form_frame, text="Program:").grid(row=0, column=0, sticky="w", pady=4)
 
     prog_list = []
+    province_list = []
+    district_list = []
 
     def load_program_options():
         nonlocal prog_list
@@ -84,42 +113,126 @@ def create_data_exchange_frame(parent, show_frame):
     refresh_program_button = ctk.CTkButton(form_frame, text="↻", width=36, command=refresh_programs)
     refresh_program_button.grid(row=0, column=2, padx=(6, 0), pady=4)
 
-    ctk.CTkLabel(form_frame, text="Page Size:").grid(row=1, column=0, sticky="w", pady=4)
+    def load_provinces():
+        nonlocal province_list
+        province_list = get_organisation_units_by_level(PROVINCE_LEVEL)
+        return ["<All Provinces>", *[_format_orgunit_option(item) for item in province_list]]
+
+    def refresh_districts(_selected_value=None):
+        nonlocal district_list
+
+        province_id = _extract_orgunit_id(selected_province.get())
+
+        try:
+            if province_id:
+                district_list = get_organisation_units_by_parent_id(parent_id=province_id)
+            else:
+                district_list = get_organisation_units_by_level(DISTRICT_LEVEL)
+
+            options = ["<All Districts>", *[_format_orgunit_option(item) for item in district_list]]
+            district_dropdown.configure(values=options)
+
+            if selected_district.get() not in options:
+                selected_district.set(options[0])
+        except Exception as e:
+            district_list = []
+            selected_district.set("<failed to load districts>")
+            district_dropdown.configure(values=["<failed to load districts>"])
+            append_log(f"[ERROR] Failed to load districts: {e}")
+
+    def refresh_orgunits():
+        try:
+            province_options = load_provinces()
+            province_dropdown.configure(values=province_options)
+
+            if selected_province.get() not in province_options:
+                selected_province.set(province_options[0])
+
+            refresh_districts()
+            append_log("[INFO] Province and district lists refreshed")
+        except Exception as e:
+            selected_province.set("<failed to load provinces>")
+            province_dropdown.configure(values=["<failed to load provinces>"])
+            selected_district.set("<failed to load districts>")
+            district_dropdown.configure(values=["<failed to load districts>"])
+            append_log(f"[ERROR] Failed to load organisation units: {e}")
+
+    def get_selected_orgunits():
+        if selected_province.get().startswith("<failed") or selected_district.get().startswith("<failed"):
+            raise ValueError("province/district options are not loaded correctly")
+
+        district_id = _extract_orgunit_id(selected_district.get())
+        province_id = _extract_orgunit_id(selected_province.get())
+
+        if district_id:
+            district = next((item for item in district_list if item.get("id") == district_id), None)
+            if district:
+                return [district]
+            raise ValueError("selected district was not found in the loaded list")
+
+        if province_id:
+            return get_organisation_units_by_parent_id(parent_id=province_id)
+
+        return get_organisation_units_by_level(DISTRICT_LEVEL)
+
+    ctk.CTkLabel(form_frame, text="Province:").grid(row=1, column=0, sticky="w", pady=4)
+    selected_province = ctk.StringVar(value="<All Provinces>")
+    province_dropdown = ctk.CTkOptionMenu(
+        form_frame,
+        values=["<All Provinces>"],
+        variable=selected_province,
+        width=220,
+        command=refresh_districts,
+    )
+    province_dropdown.grid(row=1, column=1, pady=4, sticky="ew")
+    ctk.CTkButton(form_frame, text="↻", width=36, command=refresh_orgunits).grid(row=1, column=2, padx=(6, 0), pady=4)
+
+    ctk.CTkLabel(form_frame, text="District:").grid(row=2, column=0, sticky="w", pady=4)
+    selected_district = ctk.StringVar(value="<All Districts>")
+    district_dropdown = ctk.CTkOptionMenu(
+        form_frame,
+        values=["<All Districts>"],
+        variable=selected_district,
+        width=220,
+    )
+    district_dropdown.grid(row=2, column=1, pady=4, sticky="ew")
+
+    ctk.CTkLabel(form_frame, text="Page Size:").grid(row=3, column=0, sticky="w", pady=4)
     page_size_entry = ctk.CTkEntry(form_frame, width=220)
     page_size_entry.insert(0, "500")
-    page_size_entry.grid(row=1, column=1, pady=4, sticky="ew")
+    page_size_entry.grid(row=3, column=1, pady=4, sticky="ew")
 
     data_mapping_options = _get_mapping_options(list_data_mappings)
     selected_data_mapping = ctk.StringVar(value=_get_default_mapping(data_mapping_options))
-    ctk.CTkLabel(form_frame, text="Data Mapping:").grid(row=2, column=0, sticky="w", pady=4)
+    ctk.CTkLabel(form_frame, text="Data Mapping:").grid(row=4, column=0, sticky="w", pady=4)
     data_mapping_dropdown = ctk.CTkOptionMenu(form_frame, values=data_mapping_options, variable=selected_data_mapping, width=220)
-    data_mapping_dropdown.grid(row=2, column=1, pady=4, sticky="ew")
+    data_mapping_dropdown.grid(row=4, column=1, pady=4, sticky="ew")
 
     def refresh_data_mappings():
         options = _get_mapping_options(list_data_mappings)
         _set_option_menu_values(data_mapping_dropdown, selected_data_mapping, options)
         append_log("[INFO] Data mapping list refreshed")
 
-    ctk.CTkButton(form_frame, text="↻", width=36, command=refresh_data_mappings).grid(row=2, column=2, padx=(6, 0), pady=4)
+    ctk.CTkButton(form_frame, text="↻", width=36, command=refresh_data_mappings).grid(row=4, column=2, padx=(6, 0), pady=4)
 
     location_mapping_options = _get_mapping_options(list_location_mappings)
     selected_location_mapping = ctk.StringVar(value=_get_default_mapping(location_mapping_options))
-    ctk.CTkLabel(form_frame, text="Location Mapping:").grid(row=3, column=0, sticky="w", pady=4)
+    ctk.CTkLabel(form_frame, text="Location Mapping:").grid(row=5, column=0, sticky="w", pady=4)
     location_mapping_dropdown = ctk.CTkOptionMenu(form_frame, values=location_mapping_options, variable=selected_location_mapping, width=220)
-    location_mapping_dropdown.grid(row=3, column=1, pady=4, sticky="ew")
+    location_mapping_dropdown.grid(row=5, column=1, pady=4, sticky="ew")
 
     def refresh_location_mappings():
         options = _get_mapping_options(list_location_mappings)
         _set_option_menu_values(location_mapping_dropdown, selected_location_mapping, options)
         append_log("[INFO] Location mapping list refreshed")
 
-    ctk.CTkButton(form_frame, text="↻", width=36, command=refresh_location_mappings).grid(row=3, column=2, padx=(6, 0), pady=4)
+    ctk.CTkButton(form_frame, text="↻", width=36, command=refresh_location_mappings).grid(row=5, column=2, padx=(6, 0), pady=4)
 
     relationship_mapping_options = _get_mapping_options(list_relationship_mappings)
     selected_relationship_mapping = ctk.StringVar(value=_get_default_mapping(relationship_mapping_options))
-    ctk.CTkLabel(form_frame, text="Relationship Mapping:").grid(row=4, column=0, sticky="w", pady=4)
+    ctk.CTkLabel(form_frame, text="Relationship Mapping:").grid(row=6, column=0, sticky="w", pady=4)
     relationship_mapping_dropdown = ctk.CTkOptionMenu(form_frame, values=relationship_mapping_options, variable=selected_relationship_mapping, width=220)
-    relationship_mapping_dropdown.grid(row=4, column=1, pady=4, sticky="ew")
+    relationship_mapping_dropdown.grid(row=6, column=1, pady=4, sticky="ew")
 
     def refresh_relationship_mappings():
         options = _get_mapping_options(list_relationship_mappings)
@@ -127,13 +240,13 @@ def create_data_exchange_frame(parent, show_frame):
         append_log("[INFO] Relationship mapping list refreshed")
         toggle_relationship_mapping_state()
 
-    ctk.CTkButton(form_frame, text="↻", width=36, command=refresh_relationship_mappings).grid(row=4, column=2, padx=(6, 0), pady=4)
+    ctk.CTkButton(form_frame, text="↻", width=36, command=refresh_relationship_mappings).grid(row=6, column=2, padx=(6, 0), pady=4)
 
     def toggle_relationship_mapping_state():
         relationship_mapping_dropdown.configure(state="normal" if include_relationships_var.get() else "disabled")
 
     async_var = ctk.BooleanVar(value=False)
-    ctk.CTkCheckBox(form_frame, text="Async import", variable=async_var).grid(row=5, column=0, columnspan=2, sticky="w", pady=4)
+    ctk.CTkCheckBox(form_frame, text="Async import", variable=async_var).grid(row=7, column=0, columnspan=2, sticky="w", pady=4)
 
     include_relationships_var = ctk.BooleanVar(value=False)
     ctk.CTkCheckBox(
@@ -141,11 +254,11 @@ def create_data_exchange_frame(parent, show_frame):
         text="Include relationships",
         variable=include_relationships_var,
         command=toggle_relationship_mapping_state
-    ).grid(row=6, column=0, columnspan=2, sticky="w", pady=4)
+    ).grid(row=8, column=0, columnspan=2, sticky="w", pady=4)
     toggle_relationship_mapping_state()
 
     run_button = ctk.CTkButton(form_frame, text="Run Data Exchange", width=180)
-    run_button.grid(row=7, column=0, columnspan=2, pady=15)
+    run_button.grid(row=9, column=0, columnspan=2, pady=15)
 
     def reset_program_logs():
         if not selected_program.get() or selected_program.get().startswith("<failed"):
@@ -158,10 +271,10 @@ def create_data_exchange_frame(parent, show_frame):
         append_log(f"[INFO] Data logs reset for program {program_id}")
 
     reset_button = ctk.CTkButton(form_frame, text="Reset Data Logs", width=180, command=reset_program_logs)
-    reset_button.grid(row=8, column=0, columnspan=2, pady=(0, 8))
+    reset_button.grid(row=10, column=0, columnspan=2, pady=(0, 8))
 
     clear_button = ctk.CTkButton(form_frame, text="Clear Prints", width=180, command=lambda: log_text.delete('1.0', 'end'))
-    clear_button.grid(row=9, column=0, columnspan=2, pady=(0, 15))
+    clear_button.grid(row=11, column=0, columnspan=2, pady=(0, 15))
 
     # Right log area
     log_frame = ctk.CTkFrame(content)
@@ -192,9 +305,19 @@ def create_data_exchange_frame(parent, show_frame):
         sel = selected_program.get()
         program_id = sel.split("(")[-1].strip(")") if "(" in sel else sel
 
-        matching_program = next((p for p in prog_list if p['id'] == program_id), None)
+        matching_program = next((p for p in prog_list if p.get('id') == program_id), None)
         if not matching_program:
             append_log(f"[ERROR] Program not found: {program_id}")
+            return
+
+        try:
+            orgunits = get_selected_orgunits()
+        except Exception as e:
+            append_log(f"[ERROR] Failed to resolve organisation units: {e}")
+            return
+
+        if not orgunits:
+            append_log("[WARN] No organisation units matched the selected province/district.")
             return
 
         try:
@@ -226,6 +349,7 @@ def create_data_exchange_frame(parent, show_frame):
 
         append_log(
             f"[INFO] Starting DataExchangeExecution with program '{matching_program['name']}' ({matching_program['id']}), "
+            f"province='{selected_province.get()}', district='{selected_district.get()}', orgunits={len(orgunits)}, "
             f"pageSize={page_size}, async={async_var.get()}, dataMapping={selected_data_mapping.get()}, "
             f"locationMapping={selected_location_mapping.get()}, includeRelationships={include_relationships_var.get()}, "
             f"relationshipMapping={selected_relationship_mapping.get() if include_relationships_var.get() else '<ignored>'}"
@@ -238,7 +362,8 @@ def create_data_exchange_frame(parent, show_frame):
             include_relationships=include_relationships_var.get(),
             variable_mapping=variable_mapping,
             orgunit_mapping=orgunit_mapping,
-            relationship_mapping=relationship_mapping_config
+            relationship_mapping=relationship_mapping_config,
+            orgunits=orgunits,
         )
 
         def worker():
@@ -246,6 +371,7 @@ def create_data_exchange_frame(parent, show_frame):
                 def write(self, text):
                     if text.strip():
                         log_queue.put(text.strip())
+
                 def flush(self):
                     pass
 
@@ -263,6 +389,8 @@ def create_data_exchange_frame(parent, show_frame):
         thread.start()
 
     run_button.configure(command=run_data_exchange)
+
+    refresh_orgunits()
 
     parent.after(100, process_queue)
     return frame

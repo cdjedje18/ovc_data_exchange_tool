@@ -11,3 +11,4 @@ class DataExchangeExecutionConfig:
     variable_mapping: dict = None
     orgunit_mapping: dict = None
     relationship_mapping: dict = None
+    orgunits: list | None = None
