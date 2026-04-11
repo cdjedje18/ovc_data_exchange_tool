@@ -203,7 +203,7 @@ def create_data_exchange_frame(parent, show_frame):
     page_size_entry.grid(row=3, column=1, pady=4, sticky="ew")
 
     data_mapping_options = _get_mapping_options(list_data_mappings)
-    selected_data_mapping = ctk.StringVar(value=_get_default_mapping(data_mapping_options))
+    selected_data_mapping = ctk.StringVar(value="<none>")
     ctk.CTkLabel(form_frame, text="Data Mapping:").grid(row=4, column=0, sticky="w", pady=4)
     data_mapping_dropdown = ctk.CTkOptionMenu(form_frame, values=data_mapping_options, variable=selected_data_mapping, width=220)
     data_mapping_dropdown.grid(row=4, column=1, pady=4, sticky="ew")
@@ -216,7 +216,7 @@ def create_data_exchange_frame(parent, show_frame):
     ctk.CTkButton(form_frame, text="↻", width=36, command=refresh_data_mappings).grid(row=4, column=2, padx=(6, 0), pady=4)
 
     location_mapping_options = _get_mapping_options(list_location_mappings)
-    selected_location_mapping = ctk.StringVar(value=_get_default_mapping(location_mapping_options))
+    selected_location_mapping = ctk.StringVar(value="<none>")
     ctk.CTkLabel(form_frame, text="Location Mapping:").grid(row=5, column=0, sticky="w", pady=4)
     location_mapping_dropdown = ctk.CTkOptionMenu(form_frame, values=location_mapping_options, variable=selected_location_mapping, width=220)
     location_mapping_dropdown.grid(row=5, column=1, pady=4, sticky="ew")
@@ -229,7 +229,7 @@ def create_data_exchange_frame(parent, show_frame):
     ctk.CTkButton(form_frame, text="↻", width=36, command=refresh_location_mappings).grid(row=5, column=2, padx=(6, 0), pady=4)
 
     relationship_mapping_options = _get_mapping_options(list_relationship_mappings)
-    selected_relationship_mapping = ctk.StringVar(value=_get_default_mapping(relationship_mapping_options))
+    selected_relationship_mapping = ctk.StringVar(value="<none>")
     ctk.CTkLabel(form_frame, text="Relationship Mapping:").grid(row=6, column=0, sticky="w", pady=4)
     relationship_mapping_dropdown = ctk.CTkOptionMenu(form_frame, values=relationship_mapping_options, variable=selected_relationship_mapping, width=220)
     relationship_mapping_dropdown.grid(row=6, column=1, pady=4, sticky="ew")
@@ -243,7 +243,12 @@ def create_data_exchange_frame(parent, show_frame):
     ctk.CTkButton(form_frame, text="↻", width=36, command=refresh_relationship_mappings).grid(row=6, column=2, padx=(6, 0), pady=4)
 
     def toggle_relationship_mapping_state():
-        relationship_mapping_dropdown.configure(state="normal" if include_relationships_var.get() else "disabled")
+        if include_relationships_var.get():
+            options = _get_mapping_options(list_relationship_mappings)
+            _set_option_menu_values(relationship_mapping_dropdown, selected_relationship_mapping, options)
+            relationship_mapping_dropdown.configure(state="normal")
+        else:
+            relationship_mapping_dropdown.configure(state="disabled")
 
     async_var = ctk.BooleanVar(value=False)
     ctk.CTkCheckBox(form_frame, text="Async import", variable=async_var).grid(row=7, column=0, columnspan=2, sticky="w", pady=4)

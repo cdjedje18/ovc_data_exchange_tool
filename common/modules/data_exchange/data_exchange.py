@@ -33,7 +33,7 @@ def generate_endpoint(program:dict):
 def generate_fields(program:dict, execution_config: DataExchangeExecutionConfig = None):
 
     if program['programType'] == constants.TRACKER_PROGRAM_TYPE:
-      
+      print(execution_config.include_relationships)
       if execution_config and execution_config.include_relationships:
           return "*,!createdBy,!updatedBy,relationships[relationship,relationshipType,from[trackedEntity[trackedEntity]],to[trackedEntity[trackedEntity]]],enrollments[*,events[*,!createdBy,!updatedBy],!attributes]"
 
@@ -96,17 +96,6 @@ def get_programs() -> list:
     client = create_client(config=utils.get_config_file()['originServer'])
     programs = client.get("/api/programs", params={"fields": "id,name,programType", "paging": False})
     return programs['programs']
-
-
-
-def get_program_info(program: dict, page_size: int, client: DHIS2Client) -> list:
-
-    print("Retrieving info for program:", program['name'])
-    endpoint = generate_endpoint(program=program)
-    fields = generate_fields(program=program)
-    program_pager = get_total_data(program=program['id'], endpoint=endpoint, page_size=page_size, client=client)
-
-    return program_pager, endpoint, fields
 
 
 
@@ -179,7 +168,7 @@ def reset_data_folder(program_id: str):
 def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_client: DHIS2Client, destiny_client: DHIS2Client):
 
     endpoint_tracker = generate_endpoint(execution_config.program)
-    fields_tracker = generate_fields(execution_config.program)
+    fields_tracker = generate_fields(program=execution_config.program, execution_config=execution_config)
 
     orgunit_mapping_dict = {ou_mapping_item['sourceOrgUnit']: ou_mapping_item['targetOrgUnit'] for ou_mapping_item in execution_config.orgunit_mapping.get("mappings", [])} if execution_config.orgunit_mapping else None
     relationship_mapping_dict = {mapping_item['source']: mapping_item['target'] for mapping_item in execution_config.relationship_mapping.get("mappings", [])} if execution_config.relationship_mapping else None
@@ -210,8 +199,8 @@ def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_
                 
                 data_to_send = { "trackedEntities": handle_transfomation.transform_tracker_payload(source_payload=data_to_transform, execution_config=execution_config, orgunit_mapping_hash=orgunit_mapping_dict, relationship_mapping_hash=relationship_mapping_dict)}
 
-                # with open(f"{folder_tracker}/{page}_transformed.txt", "w", encoding="utf8") as f:
-                #     f.write(json.dumps(data_to_send))
+                with open(f"{folder_tracker}/{page}_transformed.txt", "w", encoding="utf8") as f:
+                    f.write(json.dumps(data_to_send))
 
                 print(f"Sending tracked entities to destiny server for program {execution_config.program['name']} at {orgunit['name']} orgunit: page {page} / {program_pager_tracker['pageCount']}")
                 send_result = send_data_to_destiny(data=data_to_send, execution_config=execution_config, client=destiny_client)
@@ -228,7 +217,7 @@ def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_
 def handle_event(execution_config: DataExchangeExecutionConfig, origin_client: DHIS2Client, destiny_client: DHIS2Client):
 
     endpoint_event = constants.EVENT_ENDPOINT
-    fields_event = generate_fields(execution_config.program)
+    fields_event = generate_fields(program=execution_config.program, execution_config=execution_config)
     
     orgunit_mapping_dict = {ou_mapping_item['sourceOrgUnit']: ou_mapping_item['targetOrgUnit'] for ou_mapping_item in execution_config.orgunit_mapping.get("mappings", [])} if execution_config.orgunit_mapping else None
 
