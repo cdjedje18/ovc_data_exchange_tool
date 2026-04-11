@@ -10,7 +10,7 @@ import json
 # from dataclasses import dataclass
 import shutil
 from common.modules.mixins.DataExchangeExecutionConfig import DataExchangeExecutionConfig
-
+import requests
 
 
 def get_logger():
@@ -149,13 +149,15 @@ def send_data_to_destiny(data: dict, execution_config: DataExchangeExecutionConf
     try:
         # print(json.dumps(data))
         results = client.post(f"/api/tracker.json", json=data, params={"async": execution_config.async_import})
-        print(f"Import summary: {results['stats']}")
-        # print(f"✅ Data sent to destiny server with response")
+        print(f"✅ Import summary: {results['stats']}")
         return results
     
     except DHIS2HTTPError as e:
-        # print(e)
+        # print(e.payload)
         print("❌ Error sending data to destiny server")
+        error_details = [report.get("message") for report in e.payload.get('validationReport', {}).get("errorReports", [])]
+        # print(error_details)
+        print(f"❌ Import summary: {e.payload['stats']}", *error_details)
         return None
     
 
