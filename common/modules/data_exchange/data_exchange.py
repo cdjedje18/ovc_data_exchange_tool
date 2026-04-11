@@ -149,7 +149,7 @@ def send_data_to_destiny(data: dict, execution_config: DataExchangeExecutionConf
     try:
         # print(json.dumps(data))
         results = client.post(f"/api/tracker.json", json=data, params={"async": execution_config.async_import})
-        print(results)
+        print(f"Import summary: {results['stats']}")
         # print(f"✅ Data sent to destiny server with response")
         return results
     
