@@ -26,11 +26,9 @@ def execute():
 
     # extract_data.execute(harmonization_execution_config=execution_config)
 
-    evaluators.execute(harmonization_execution_config=execution_config)
+    # evaluators.execute(harmonization_execution_config=execution_config)
     
-    # transform_and_load.execute(harmonization_execution_config=execution_config)
-
-    # load_data.execute(harmonization_execution_config=execution_config)
+    transform_and_load.execute(harmonization_execution_config=execution_config)
     
 
 

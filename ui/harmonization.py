@@ -233,7 +233,10 @@ def create_harmonization_frame(parent, show_frame):
         form_frame,
         text="Harmonize and Send",
         width=180,
-        command=lambda: run_selected_action("Harmonize and Send", transform_and_load.execute),
+        command=lambda: run_selected_action(
+            "Harmonize and Send",
+            lambda orgunits: transform_and_load.execute(_build_harmonization_config(orgunits)),
+        ),
     )
     harmonize_button.grid(row=5, column=0, columnspan=2, pady=8)
 
