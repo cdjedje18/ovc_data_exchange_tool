@@ -20,6 +20,8 @@ def generating_attributes(matrix_event_data_value_dict:dict, mapping:dict):
     mapping_attributes = mapping.get("attributes", [])
     for mapping_attr in mapping_attributes:
 
+        attr_id = mapping_attr['attributeId']
+
         if "defaultValue" in mapping_attr:
             attributes.append({
                 "attribute": attr_id,
@@ -28,7 +30,7 @@ def generating_attributes(matrix_event_data_value_dict:dict, mapping:dict):
             continue
 
         de_id = mapping_attr['dataElementId']
-        attr_id = mapping_attr['attributeId']
+        
 
         if de_id in matrix_event_data_value_dict:
             attributes.append({
