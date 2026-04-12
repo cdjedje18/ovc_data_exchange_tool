@@ -1,6 +1,7 @@
 from dhis2_client import DHIS2Client
 import logging
 import urllib3
+from common.modules.mixins.DataExchangeExecutionConfig import HarmonizationExecutionConfig
 from common.utils import utils
 import os
 import json
@@ -61,10 +62,9 @@ def process_data(orgunit: dict):
     
 
 
-def execute(orgunits:list | None):
+def execute(harmonization_execution_config: HarmonizationExecutionConfig = None):
 
-    if orgunits is None:
-        orgunits = extract_data.get_organisation_units_based_on_level()
+    orgunits = harmonization_execution_config.orgunits if harmonization_execution_config and harmonization_execution_config.orgunits else extract_data.get_organisation_units_based_on_level()
 
     for orgunit in orgunits:
         # print(f"Processing orgunit: {orgunit['id']}")

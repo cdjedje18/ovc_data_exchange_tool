@@ -5,6 +5,7 @@ import sys
 
 from common.modules.extract_modules import extract_data
 from common.modules.transform_modules import evaluators, transform_and_load
+from common.modules.mixins.DataExchangeExecutionConfig import HarmonizationExecutionConfig
 from core.helpers.orgunits import (
     get_organisation_units_by_level,
     get_organisation_units_by_parent_id,
@@ -189,21 +190,44 @@ def create_harmonization_frame(parent, show_frame):
     )
     district_dropdown.grid(row=1, column=1, pady=4, sticky="ew")
 
+    ctk.CTkLabel(form_frame, text="Beneficiary Program Server:").grid(row=2, column=0, sticky="w", pady=4)
+    selected_beneficiary_server = ctk.StringVar(value="origin_server")
+    beneficiary_server_dropdown = ctk.CTkOptionMenu(
+        form_frame,
+        values=["origin_server", "destiny_server"],
+        variable=selected_beneficiary_server,
+        width=220,
+    )
+    beneficiary_server_dropdown.grid(row=2, column=1, pady=4, sticky="ew")
+
+    def _build_harmonization_config(orgunits):
+        return HarmonizationExecutionConfig(
+            page_size=500,
+            beneficiary_program_server=selected_beneficiary_server.get(),
+            orgunits=orgunits,
+        )
+
     extract_button = ctk.CTkButton(
         form_frame,
         text="Extract Data",
         width=180,
-        command=lambda: run_selected_action("Extract data", extract_data.execute),
+        command=lambda: run_selected_action(
+            "Extract data",
+            lambda orgunits: extract_data.execute(_build_harmonization_config(orgunits)),
+        ),
     )
-    extract_button.grid(row=2, column=0, columnspan=2, pady=(15, 8))
+    extract_button.grid(row=3, column=0, columnspan=2, pady=(15, 8))
 
     evaluate_button = ctk.CTkButton(
         form_frame,
         text="Evaluate",
         width=180,
-        command=lambda: run_selected_action("Evaluate", evaluators.execute),
+        command=lambda: run_selected_action(
+            "Evaluate",
+            lambda orgunits: evaluators.execute(_build_harmonization_config(orgunits)),
+        ),
     )
-    evaluate_button.grid(row=3, column=0, columnspan=2, pady=8)
+    evaluate_button.grid(row=4, column=0, columnspan=2, pady=8)
 
     harmonize_button = ctk.CTkButton(
         form_frame,
@@ -211,7 +235,7 @@ def create_harmonization_frame(parent, show_frame):
         width=180,
         command=lambda: run_selected_action("Harmonize and Send", transform_and_load.execute),
     )
-    harmonize_button.grid(row=4, column=0, columnspan=2, pady=8)
+    harmonize_button.grid(row=5, column=0, columnspan=2, pady=8)
 
     clear_button = ctk.CTkButton(
         form_frame,
@@ -219,7 +243,7 @@ def create_harmonization_frame(parent, show_frame):
         width=180,
         command=lambda: log_text.delete('1.0', 'end'),
     )
-    clear_button.grid(row=5, column=0, columnspan=2, pady=(8, 15))
+    clear_button.grid(row=6, column=0, columnspan=2, pady=(8, 15))
 
     refresh_orgunits()
 

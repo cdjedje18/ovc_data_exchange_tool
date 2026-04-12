@@ -2,6 +2,7 @@ from dhis2_client import DHIS2Client
 import logging
 import urllib3
 from common import constants
+from common.modules.mixins.DataExchangeExecutionConfig import HarmonizationExecutionConfig
 from common.utils import utils
 import os
 import json
@@ -72,9 +73,17 @@ def get_total_data(program:str, endpoint:str, orgunit:str, page_size:int, client
     return results
 
 
+def create_client(config: dict) -> DHIS2Client:
+    client = DHIS2Client(
+        base_url=config['url'],
+        username=config['username'],
+        password=config['pass'],
+        verify_ssl=False
+    )
+    return client
 
 
-def downloading_tracked_entities(orgunits:list) -> list:
+def downloading_tracked_entities(execution_config: HarmonizationExecutionConfig = None) -> list:
 
     logger = get_logger()
     logging.info(f"Download TEIs")
@@ -84,25 +93,28 @@ def downloading_tracked_entities(orgunits:list) -> list:
     The job downloads the data per organisaiton units.
     """
 
-    config = utils.get_config_file()
-    harmonization_programs = [config['matrixProgram'], config['beneficiaryProgram']]
+    # print(execution_config.orgunits)
 
-    client = DHIS2Client(
-        base_url=config['originServer']['url'],
-        username=config['originServer']['username'],
-        password=config['originServer']['pass'],  # Basic auth by default,
-        verify_ssl=False
-    )
+    orgunits = execution_config.orgunits if execution_config and execution_config.orgunits else get_organisation_units_based_on_level()
+
+    config = utils.get_config_file()
+    harmonization_programs = [config['matrixProgram'], {**config['beneficiaryProgram'], 'server': execution_config.beneficiary_program_server}]
+
+    origin_client = create_client(config['originServer'])
+
+    destiny_client = create_client(config['destinyServer'])
 
     # org_units = get_organisation_units_based_on_level()
 
-    page_size = config['teiDownloadPageSize'] if 'teiDownloadPageSize' in config else 500
+    page_size =  execution_config.page_size if execution_config and execution_config.page_size else config['teiDownloadPageSize'] if 'teiDownloadPageSize' in config else 500
 
-    for program in harmonization_programs['programs']:
+    for program in harmonization_programs:
+
+        client = destiny_client if 'server' in program and program['server'] == 'destiny_server' else origin_client
 
         for orgunit in orgunits: 
             
-            print("Retrieving info for program:", program['name'], "for organisation unit:", orgunit['name'])
+            # print(f"Retrieving info for program: {program['name']} for organisation unit: {orgunit['name']}")
             endpoint = generate_endpoint(program=program)
             fields = generate_fields(program=program)
             program_pager = get_total_data(program=program['id'], endpoint=endpoint, orgunit=orgunit['id'], page_size=page_size, client=client)
@@ -118,7 +130,7 @@ def downloading_tracked_entities(orgunits:list) -> list:
                         print(f"⚠️ Data for page {page} already exists, skipping download.")
                         continue
 
-                    print("Downloading data for program:", program['name'], "for organisation unit:", orgunit['name'], "page:", page, "/", program_pager['pageCount'])
+                    print(f"Downloading data for program: {program['name']} for organisation unit: {orgunit['name']} page: {page} / {program_pager['pageCount']}")
                     results = client.get(f"/api/tracker/{endpoint}.json", params={"program": program['id'], "orgUnit": orgunit['id'], "ouMode": "DESCENDANTS", "page": page, "fields": fields, "pageSize": page_size})
                 
                     with open(f"{data_folder}/{page}.txt", "w", encoding="utf8") as f:
@@ -132,12 +144,12 @@ def downloading_tracked_entities(orgunits:list) -> list:
 
 
 
-def execute(orgunits:list | None):
+def execute(harmonization_execution_config: HarmonizationExecutionConfig = None):
 
-    if orgunits is None:
-        orgunits = get_organisation_units_based_on_level()
+    if harmonization_execution_config is None:
+        harmonization_execution_config = HarmonizationExecutionConfig(page_size=500, beneficiary_program_server="origin_server")
 
-    downloading_tracked_entities(orgunits=orgunits)
+    downloading_tracked_entities(execution_config=harmonization_execution_config)
 
 
 

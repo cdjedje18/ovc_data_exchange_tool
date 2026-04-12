@@ -3,6 +3,7 @@ import os
 
 import pandas as pd
 from common.modules.extract_modules.extract_data import get_organisation_units_based_on_level
+from common.modules.mixins.DataExchangeExecutionConfig import HarmonizationExecutionConfig
 from common.utils import utils
 
 
@@ -415,14 +416,15 @@ def get_not_processed_events(matrix_data: list, processed_events: set):
 
 
 
-def execute(orgunits: list | None):
+def execute(harmonization_execution_config: HarmonizationExecutionConfig = None):
+
+
 
     config = utils.get_config_file()
     beneficiary_program = config['beneficiaryProgram']
     matrix_program = config['matrixProgram']
 
-    if orgunits is None:
-        orgunits = get_organisation_units_based_on_level()
+    orgunits = harmonization_execution_config.orgunits if harmonization_execution_config and harmonization_execution_config.orgunits else get_organisation_units_based_on_level()
 
     for index, orgunit in enumerate(orgunits):
         print(f"Doing for organisation unit {orgunit['name']} ({index + 1}/{len(orgunits)})")

@@ -12,3 +12,10 @@ class DataExchangeExecutionConfig:
     orgunit_mapping: dict = None
     relationship_mapping: dict = None
     orgunits: list | None = None
+
+
+@dataclass
+class HarmonizationExecutionConfig:
+    page_size: int
+    beneficiary_program_server: str
+    orgunits: list | None = None
