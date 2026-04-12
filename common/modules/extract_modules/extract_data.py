@@ -85,7 +85,7 @@ def downloading_tracked_entities(orgunits:list) -> list:
     """
 
     config = utils.get_config_file()
-    harmonization_programs = utils.get_harmonization_file()
+    harmonization_programs = [config['matrixProgram'], config['beneficiaryProgram']]
 
     client = DHIS2Client(
         base_url=config['originServer']['url'],

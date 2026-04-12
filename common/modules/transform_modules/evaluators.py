@@ -6,8 +6,8 @@ from common.modules.extract_modules.extract_data import get_organisation_units_b
 from common.utils import utils
 
 
-BENEFICIARY_PROGRAM = {"id": "pVgO58r40Au", "name": "Beneficiary Program", "type": "TRACKER"}
-MATRIX_PROGRAM = {"id": "coLY2kfLmlC", "name": "Matrix Program", "type": "EVENT"}
+# BENEFICIARY_PROGRAM = {"id": "pVgO58r40Au", "name": "Beneficiary Program", "type": "TRACKER"}
+# MATRIX_PROGRAM = {"id": "coLY2kfLmlC", "name": "Matrix Program", "type": "EVENT"}
 
 
 def load_data(orgunit, program):
@@ -417,6 +417,10 @@ def get_not_processed_events(matrix_data: list, processed_events: set):
 
 def execute(orgunits: list | None):
 
+    config = utils.get_config_file()
+    beneficiary_program = config['beneficiaryProgram']
+    matrix_program = config['matrixProgram']
+
     if orgunits is None:
         orgunits = get_organisation_units_based_on_level()
 
@@ -426,16 +430,16 @@ def execute(orgunits: list | None):
         processed_beneficiary_te_ids = set()
         processed_matrix_te_ids = set()
 
-        beneficiary_data = load_data(orgunit=orgunit, program=BENEFICIARY_PROGRAM)
+        beneficiary_data = load_data(orgunit=orgunit, program=beneficiary_program)
 
         if not beneficiary_data:
             continue
 
-        beneficiary_data = add_hash_values(beneficiary_data, BENEFICIARY_PROGRAM['type'])
+        beneficiary_data = add_hash_values(beneficiary_data, beneficiary_program['programType'])
         grouped_nid_teis, grouped_family_id_teis = group_data(beneficiary_data)
         
-        matrix_data = load_data(orgunit=orgunit, program=MATRIX_PROGRAM)
-        matrix_data = add_hash_values(matrix_data, MATRIX_PROGRAM['type'])
+        matrix_data = load_data(orgunit=orgunit, program=matrix_program)
+        matrix_data = add_hash_values(matrix_data, matrix_program['programType'])
 
         valid_nid_matchs, non_valid_nid_matchs, processed_events = nid_evaluation(matrix_data, grouped_nid_teis)
 
