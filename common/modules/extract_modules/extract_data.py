@@ -1,6 +1,8 @@
 from dhis2_client import DHIS2Client
 import logging
 import urllib3
+from common import constants
+from common.modules.mixins.DataExchangeExecutionConfig import HarmonizationExecutionConfig
 from common.utils import utils
 import os
 import json
@@ -12,13 +14,35 @@ def get_logger():
     return logger
 
 
+def load_data(orgunit, program):
+    # print(orgunit, program)
+    folder = f"results/extract_module/{orgunit['id']}/{program['id']}"
+    if not os.path.exists(folder):
+        print(f"⚠️ No local data found for program {program['name']} and organisation unit {orgunit['name']}. Skipping.")
+        return []
+    
+    data = []
+    key = 'trackedEntities' if program['programType'] == constants.TRACKER_PROGRAM_TYPE else 'events'
+    instance_key = constants.INSTANCES
+    for file_name in sorted(os.listdir(folder)):
+        if file_name.endswith('.txt'):
+            file_path = os.path.join(folder, file_name)
+            with open(file_path, 'r', encoding='utf8') as f:
+                page_data = json.load(f)
+                if key in page_data:
+                    data.extend(page_data[key])
+                elif instance_key in page_data:
+                    data.extend(page_data[instance_key])
+
+    return data
+
 
 def generate_endpoint(program:dict):
 
-    if program['type'] == "TRACKER":
+    if program['programType'] == constants.TRACKER_PROGRAM_TYPE:
       return "trackedEntities"
 
-    if program['type'] == "EVENT":
+    if program['programType'] == constants.EVENT_PROGRAM_TYPE:
       return "events"
     
     raise ValueError("Endpoint not correct defiend in config file")
@@ -26,10 +50,10 @@ def generate_endpoint(program:dict):
 
 def generate_fields(program:dict):
 
-    if program['type'] == "TRACKER":
+    if program['programType'] == constants.TRACKER_PROGRAM_TYPE:
       return "*,enrollments[*,!events,!attributes]"
 
-    if program['type'] == "EVENT":
+    if program['programType'] == constants.EVENT_PROGRAM_TYPE:
       return "*"
     
     raise ValueError("Endpoint not correct defiend in config file")
@@ -71,9 +95,17 @@ def get_total_data(program:str, endpoint:str, orgunit:str, page_size:int, client
     return results
 
 
+def create_client(config: dict) -> DHIS2Client:
+    client = DHIS2Client(
+        base_url=config['url'],
+        username=config['username'],
+        password=config['pass'],
+        verify_ssl=False
+    )
+    return client
 
 
-def downloading_tracked_entities() -> list:
+def downloading_tracked_entities(execution_config: HarmonizationExecutionConfig = None) -> list:
 
     logger = get_logger()
     logging.info(f"Download TEIs")
@@ -83,26 +115,28 @@ def downloading_tracked_entities() -> list:
     The job downloads the data per organisaiton units.
     """
 
+    # print(execution_config.orgunits)
+
+    orgunits = execution_config.orgunits if execution_config and execution_config.orgunits else get_organisation_units_based_on_level()
+
     config = utils.get_config_file()
-    harmonization_programs = utils.get_harmonization_file()
+    harmonization_programs = [config['matrixProgram'], {**config['beneficiaryProgram'], 'server': execution_config.beneficiary_program_server}]
 
-    client = DHIS2Client(
-        base_url=config['originServer']['url'],
-        username=config['originServer']['username'],
-        password=config['originServer']['pass'],  # Basic auth by default,
-        verify_ssl=False
-    )
+    origin_client = create_client(config['originServer'])
 
-    org_units = get_organisation_units_based_on_level()
+    destiny_client = create_client(config['destinyServer'])
 
-    page_size = config['teiDownloadPageSize'] if 'teiDownloadPageSize' in config else 500
+    # org_units = get_organisation_units_based_on_level()
 
+    page_size =  execution_config.page_size if execution_config and execution_config.page_size else config['teiDownloadPageSize'] if 'teiDownloadPageSize' in config else 500
 
-    for program in harmonization_programs['programs']:
+    for program in harmonization_programs:
 
-        for orgunit in org_units: 
+        client = destiny_client if 'server' in program and program['server'] == 'destiny_server' else origin_client
+
+        for orgunit in orgunits: 
             
-            print("Retrieving info for program:", program['name'], "for organisation unit:", orgunit['name'])
+            # print(f"Retrieving info for program: {program['name']} for organisation unit: {orgunit['name']}")
             endpoint = generate_endpoint(program=program)
             fields = generate_fields(program=program)
             program_pager = get_total_data(program=program['id'], endpoint=endpoint, orgunit=orgunit['id'], page_size=page_size, client=client)
@@ -118,7 +152,7 @@ def downloading_tracked_entities() -> list:
                         print(f"⚠️ Data for page {page} already exists, skipping download.")
                         continue
 
-                    print("Downloading data for program:", program['name'], "for organisation unit:", orgunit['name'], "page:", page, "/", program_pager['pageCount'])
+                    print(f"Downloading data for program: {program['name']} for organisation unit: {orgunit['name']} page: {page} / {program_pager['pageCount']}")
                     results = client.get(f"/api/tracker/{endpoint}.json", params={"program": program['id'], "orgUnit": orgunit['id'], "ouMode": "DESCENDANTS", "page": page, "fields": fields, "pageSize": page_size})
                 
                     with open(f"{data_folder}/{page}.txt", "w", encoding="utf8") as f:
@@ -132,9 +166,12 @@ def downloading_tracked_entities() -> list:
 
 
 
-def execute():
+def execute(harmonization_execution_config: HarmonizationExecutionConfig = None):
 
-    downloading_tracked_entities()
+    if harmonization_execution_config is None:
+        harmonization_execution_config = HarmonizationExecutionConfig(page_size=500, beneficiary_program_server="origin_server")
+
+    downloading_tracked_entities(execution_config=harmonization_execution_config)
 
 
 

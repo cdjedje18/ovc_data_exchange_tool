@@ -3,17 +3,14 @@
         {
             "id": "pVgO58r40Au",
             "name": "Seguimento Beneficiarios",
-            "type": "TRACKER"
+            "type": "TRACKER",
+            "programType": "WITH_REGISTRATION"
         },
         {
             "id": "coLY2kfLmlC",
             "name": "Matrix",
-            "type": "EVENT"
-        },
-        {
-            "id": "iSPc45re0MZ",
-            "name": "Seguimento Familias",
-            "type": "TRACKER"
+            "type": "EVENT",
+            "programType": "WITHOUT_REGISTRATION"
         }
     ],
     "otherPrograms": [

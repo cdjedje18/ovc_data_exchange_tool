@@ -1,6 +1,8 @@
 from dhis2_client import DHIS2Client
 import logging
+from dhis2_client.errors import DHIS2HTTPError
 import urllib3
+from common.modules.mixins.DataExchangeExecutionConfig import HarmonizationExecutionConfig
 from common.utils import utils
 import os
 import json
@@ -23,16 +25,19 @@ def create_client(config: dict):
 
 def send_data_to_destiny(data: dict, client: DHIS2Client):
     
-
     try:
+        # print(json.dumps(data))
         results = client.post(f"/api/tracker.json", json=data, params={"async": False})
-        # print(results)
+        print(f"✅ Import summary: {results['stats']}")
         return results
-
-    except Exception as e:
-        print(f"Error occurred while sending data: {e}")
-        return {"error": str(e)}
-
+    
+    except DHIS2HTTPError as e:
+        # print(e.payload)
+        print("❌ Error sending data to destiny server")
+        error_details = [report.get("message") for report in e.payload.get('validationReport', {}).get("errorReports", [])]
+        # print(error_details)
+        print(f"❌ Import summary: {e.payload['stats']}", *error_details)
+        return None
 
 
 
@@ -61,9 +66,10 @@ def process_data(orgunit: dict):
     
 
 
-def execute():
+def execute(harmonization_execution_config: HarmonizationExecutionConfig = None):
 
-    orgunits = extract_data.get_organisation_units_based_on_level()
+    orgunits = harmonization_execution_config.orgunits if harmonization_execution_config and harmonization_execution_config.orgunits else extract_data.get_organisation_units_based_on_level()
+
     for orgunit in orgunits:
         # print(f"Processing orgunit: {orgunit['id']}")
         process_data(orgunit=orgunit)

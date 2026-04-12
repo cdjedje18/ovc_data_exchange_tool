@@ -114,7 +114,7 @@
                             "targetDataElementName": "OVC | Resutado da Testagem"
                         },
                         {
-                            "defaultValue": "2 Teste",
+                            "defaultValue": "3 Teste",
                             "targetDataElementId": "rcFzCvWEpps",
                             "targetDataElementName": "OVC | Ciclo de Testagem"
                         }

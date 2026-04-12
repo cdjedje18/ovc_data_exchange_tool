@@ -257,7 +257,10 @@ def generate_events(matrix_event_data_value_dict:dict, mapping:dict, beneficiari
 
 
 
-def transform_data(orgunits: list):
+def transform_data(orgunits: list | None):
+
+    if orgunits is None:
+        orgunits = extract_data.get_organisation_units_based_on_level()
 
     mapping = utils.get_mapping_file()
 
@@ -300,9 +303,6 @@ def transform_data(orgunits: list):
         print(f"Total events to create: {len(events_to_create)} for organisation unit {orgunit['name']}")
 
         print(f"Data transformation completed for organisation unit {orgunit['name']}.", "\n")
-
-
-
 
     process_data(orgunits=orgunits)
     print("Data transformation completed.")
