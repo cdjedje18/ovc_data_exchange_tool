@@ -63,8 +63,8 @@ def generate_fields(program:dict):
 
 def get_organisation_units_based_on_level() -> list:
 
-    logger = get_logger()
-    logging.info(f"Download OUs")
+    # logger = get_logger()
+    # logging.info(f"Download OUs")
 
     """
     Get origin server orgunits based on the defined levels in config file.
@@ -83,7 +83,7 @@ def get_organisation_units_based_on_level() -> list:
 
     level = config['downloadLevel'] if 'downloadLevel' in config else 3 
     results = client.get("/api/organisationUnits", params={"level": level, "fields": "id,name", "paging": False})
-    logger.info(f"Downloaded {len(results['organisationUnits'])} organisation units")
+    # logger.info(f"Downloaded {len(results['organisationUnits'])} organisation units")
     return results['organisationUnits']
 
 
@@ -107,8 +107,8 @@ def create_client(config: dict) -> DHIS2Client:
 
 def downloading_tracked_entities(execution_config: HarmonizationExecutionConfig = None) -> list:
 
-    logger = get_logger()
-    logging.info(f"Download TEIs")
+    # logger = get_logger()
+    # logging.info(f"Download TEIs")
 
     """
     Downloading teis and storing local so improve job performance,
