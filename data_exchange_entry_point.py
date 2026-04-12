@@ -23,7 +23,7 @@ def execute():
         relationship_mapping=None,
         async_import=False,
         include_relationships=False,
-        orgunits=[{'id': 'HMx8Rj0TyNh', 'name': 'CIDADE DE INHAMBANE'}]
+        # orgunits=[{'id': 'HMx8Rj0TyNh', 'name': 'CIDADE DE INHAMBANE'}]
     )
 
     data_exchange.execute(execution_config=execution_config)

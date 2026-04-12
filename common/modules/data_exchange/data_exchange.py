@@ -70,7 +70,7 @@ def clear_data_exchange_folder(program_id: str):
 
 def get_total_data(program:str, endpoint:str, page_size:int, orgunit: str | None, client: DHIS2Client):
 
-    if orgunit is not None:
+    if orgunit is not None and orgunit != "ALL":
         results = client.get(f"/api/tracker/{endpoint}.json", params={"totalPages": True, "program": program, "ouMode": "DESCENDANTS", "orgUnit": orgunit, "pageSize": page_size, "fields": "created"})
         return results
 
