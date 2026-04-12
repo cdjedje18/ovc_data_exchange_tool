@@ -14,6 +14,28 @@ def get_logger():
     return logger
 
 
+def load_data(orgunit, program):
+    # print(orgunit, program)
+    folder = f"results/extract_module/{orgunit['id']}/{program['id']}"
+    if not os.path.exists(folder):
+        print(f"⚠️ No local data found for program {program['name']} and organisation unit {orgunit['name']}. Skipping.")
+        return []
+    
+    data = []
+    key = 'trackedEntities' if program['programType'] == constants.TRACKER_PROGRAM_TYPE else 'events'
+    instance_key = constants.INSTANCES
+    for file_name in sorted(os.listdir(folder)):
+        if file_name.endswith('.txt'):
+            file_path = os.path.join(folder, file_name)
+            with open(file_path, 'r', encoding='utf8') as f:
+                page_data = json.load(f)
+                if key in page_data:
+                    data.extend(page_data[key])
+                elif instance_key in page_data:
+                    data.extend(page_data[instance_key])
+
+    return data
+
 
 def generate_endpoint(program:dict):
 

@@ -3,30 +3,12 @@ import logging
 import pandas
 import urllib3
 from common import constants
+from common.modules.mixins.DataExchangeExecutionConfig import HarmonizationExecutionConfig
 from common.utils import utils
 import os
 import json
 from common.modules.extract_modules import  extract_data
 from common.modules.load_modules import load_data
-
-
-def load_local_data(orgunit, program):
-    # print(orgunit, program)
-    folder = f"results/extract_module/{orgunit['id']}/{program['id']}"
-    if not os.path.exists(folder):
-        print(f"⚠️ No local data found for program {program['name']} and organisation unit {orgunit['name']}. Skipping.")
-        return []
-    
-    data = []
-    key = 'trackedEntities' if program['type'] == 'TRACKER' else 'events'
-    for file_name in sorted(os.listdir(folder)):
-        if file_name.endswith('.txt'):
-            file_path = os.path.join(folder, file_name)
-            with open(file_path, 'r', encoding='utf8') as f:
-                page_data = json.load(f)
-                if key in page_data:
-                    data.extend(page_data[key])
-    return data
 
 
 
@@ -155,8 +137,8 @@ def transform_data(orgunits: list | None):
             print(f"⚠️ No validated data found for organisation unit {orgunit['name']}. Please run the evaluators module first. Skipping.")
             continue
 
-        beneficiarios_original_data = load_local_data(orgunit=orgunit, program=beneficiary_program)
-        matrix_original_data = load_local_data(orgunit=orgunit, program=matrix_program)
+        beneficiarios_original_data = extract_data.load_data(orgunit=orgunit, program=beneficiary_program)
+        matrix_original_data = extract_data.load_data(orgunit=orgunit, program=matrix_program)
 
         beneficiarios_dict = {beneficiario['trackedEntity']: beneficiario for beneficiario in beneficiarios_original_data}
         matrix_dict = {event['event']: event for event in matrix_original_data}
@@ -220,13 +202,17 @@ def transform_data(orgunits: list | None):
 
 
 
-def execute(orgunits:list | None):
+def execute(harmonization_execution_config:HarmonizationExecutionConfig):
 
     # orgunits = extract_data.get_organisatsion_units_based_on_level()
 
+    # print(orgunits)
+
+    orgunits = harmonization_execution_config.orgunits if harmonization_execution_config and harmonization_execution_config.orgunits else extract_data.get_organisation_units_based_on_level()
+
     transform_data(orgunits=orgunits)
 
-    load_data.execute(orgunits=orgunits)
+    load_data.execute(harmonization_execution_config=harmonization_execution_config)
 
     
 

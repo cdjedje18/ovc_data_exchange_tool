@@ -2,33 +2,10 @@ import json
 import os
 
 import pandas as pd
-from common.modules.extract_modules.extract_data import get_organisation_units_based_on_level
+from common.modules.extract_modules.extract_data import get_organisation_units_based_on_level, load_data
 from common.modules.mixins.DataExchangeExecutionConfig import HarmonizationExecutionConfig
 from common.utils import utils
-
-
-# BENEFICIARY_PROGRAM = {"id": "pVgO58r40Au", "name": "Beneficiary Program", "type": "TRACKER"}
-# MATRIX_PROGRAM = {"id": "coLY2kfLmlC", "name": "Matrix Program", "type": "EVENT"}
-
-
-def load_data(orgunit, program):
-    # print(orgunit, program)
-    folder = f"results/extract_module/{orgunit['id']}/{program['id']}"
-    if not os.path.exists(folder):
-        print(f"⚠️ No local data found for program {program['name']} and organisation unit {orgunit['name']}. Skipping.")
-        return []
-    
-    data = []
-    key = 'trackedEntities' if program['type'] == 'TRACKER' else 'events'
-    for file_name in sorted(os.listdir(folder)):
-        if file_name.endswith('.txt'):
-            file_path = os.path.join(folder, file_name)
-            with open(file_path, 'r', encoding='utf8') as f:
-                page_data = json.load(f)
-                if key in page_data:
-                    data.extend(page_data[key])
-    return data
-
+from common import constants
 
 
 
@@ -80,8 +57,8 @@ def add_hash_values(data: list[dict], type: str) -> list[dict]:
     """Add a 'hash_values' field to each item in the data list, containing a dictionary of key-value pairs from the specified type."""
 
     new_data = []
-    key = "attributes" if type == "TRACKER" else "dataValues"
-    key_data = "attribute" if type == "TRACKER" else "dataElement"
+    key = "attributes" if type == constants.TRACKER_PROGRAM_TYPE else "dataValues"
+    key_data = "attribute" if type == constants.TRACKER_PROGRAM_TYPE else "dataElement"
     for item in data:
         new_data.append({
             **item,
@@ -433,6 +410,8 @@ def execute(harmonization_execution_config: HarmonizationExecutionConfig = None)
         processed_matrix_te_ids = set()
 
         beneficiary_data = load_data(orgunit=orgunit, program=beneficiary_program)
+
+        # print(beneficiary_data)
 
         if not beneficiary_data:
             continue
