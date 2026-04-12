@@ -9,6 +9,7 @@ import os
 import json
 from common.modules.extract_modules import  extract_data
 from common.modules.load_modules import load_data
+from datetime import datetime
 
 
 
@@ -45,6 +46,9 @@ def generating_data_values(matrix_event_data_value_dict:dict, data_values_mappin
 
     for data_value_mapping_item in data_values_mapping:
 
+        
+        target_de_id = data_value_mapping_item['targetDataElementId']
+
         if "defaultValue" in data_value_mapping_item:
             data_values.append({
                 "dataElement": target_de_id,
@@ -53,7 +57,6 @@ def generating_data_values(matrix_event_data_value_dict:dict, data_values_mappin
             continue
 
         source_de_id = data_value_mapping_item['sourceDataElementId']
-        target_de_id = data_value_mapping_item['targetDataElementId']
 
         if source_de_id in matrix_event_data_value_dict:
             data_values.append({
@@ -90,6 +93,25 @@ def generated_event_date(data_values: list):
     return -1
 
 
+def get_latest_enrollment(enrollments):
+    return max(
+        enrollments,
+        key=lambda e: datetime.fromisoformat(e["enrolledAt"].replace("Z", "+00:00"))
+    )
+
+def find_valid_event_enrollment(enrollments: list):
+
+    if len(enrollments) == 0:
+        return -1
+
+    for enrollment in enrollments:
+        if enrollment.get('status') == constants.ENROLLMENT_ACTIVE_STATUS:
+            return enrollment['enrollment']
+    
+    latest_enrollment = get_latest_enrollment(enrollments)
+
+    return latest_enrollment['enrollment']
+
 
 def generate_events(matrix_event_data_value_dict:dict, mapping:dict, beneficiario:dict, original_event:dict=None):
 
@@ -107,9 +129,10 @@ def generate_events(matrix_event_data_value_dict:dict, mapping:dict, beneficiari
                     "programStage": program_stage_mapping['programStageId'],
                     "orgUnit": original_event['orgUnit'],
                     "trackedEntity": beneficiario['trackedEntity'],
+                    "enrollment": find_valid_event_enrollment(beneficiario.get('enrollments', [])),
                     "dataValues": generating_data_values(matrix_event_data_value_dict=matrix_event_data_value_dict, data_values_mapping=mapping_event.get('mapping', [])),
                 }
-                new_event['occuredAt'] = generated_event_date(data_values=new_event['dataValues'])
+                new_event['occurredAt'] = generated_event_date(data_values=new_event['dataValues'])
                 events.append(new_event)
                 
 
