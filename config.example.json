@@ -1,0 +1,16 @@
+{
+    "originServer": {
+        "url": "",
+        "username": "",
+        "pass": ""
+    },
+    "destinyServer": {
+        "url": "",
+        "username": "",
+        "pass": ""
+    },
+    "matrixProgram": {},
+    "beneficiaryProgram": {},
+    "downalodLevel": 3,
+    "teiDownloadPageSize": 500
+}

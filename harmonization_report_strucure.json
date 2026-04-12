@@ -1,0 +1,22 @@
+{
+    "headers": [
+        {
+            "dataElement": "wFvAoLyncDd",
+            "dataElementName": "Matrix | Nome Completo do Beneficiário (MRP)",
+            "attribute": "PP0L2IEL4Dm",
+            "attributeName": "SB | Nome Completo do Membro"
+        },
+        {
+            "dataElement": "aNSp2Vlubzo",
+            "dataElementName": "Matrix | Sexo",
+            "attribute": "QZWrwRQ0CRe",
+            "attributeName": "SB | Sexo 2"
+        },
+        {
+            "dataElement": "W0ObXI5lgMS",
+            "dataElementName": "Matrix | Data de Nascimento",
+            "attribute": "zLCZavzzwCI",
+            "attributeName": "SB | Idade (#)"
+        }
+    ]
+}

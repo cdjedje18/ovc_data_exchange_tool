@@ -1,0 +1,72 @@
+{
+    "nid": {
+        "source": [
+            {
+                "dataElement": "dqrgtT6GVF7",
+                "name": "NID"
+            },
+            {
+                "dataElement": "mvJZJVVtclN",
+                "name": "Novo NID"
+            },
+            {
+                "dataElement": "JjYqVlKOhJp",
+                "name": "NID CCR"
+            }
+        ],
+        "target": [
+            {
+                "attribute": "ZPKAQj86KBI",
+                "name": "NID"
+            },
+            {
+                "attribute": "coFfWIjsmyL",
+                "name": "NID Ajuda"
+            }
+        ]
+    },
+    "familyId": {
+        "attribute": "hXpyioqAugh",
+        "dataElement": "uWxJlxRdELE",
+        "secundaries": [
+            {
+                "dataElement": "wFvAoLyncDd",
+                "dataElementName": "Matrix | Nome Completo do Beneficiário (MRP)",
+                "attribute": "PP0L2IEL4Dm",
+                "attributeName": "SB | Nome Completo do Membro"
+            },
+            {
+                "dataElement": "aNSp2Vlubzo",
+                "dataElementName": "Matrix | Sexo",
+                "attribute": "QZWrwRQ0CRe",
+                "attributeName": "SB | Sexo 2"
+            },
+            {
+                "dataElement": "W0ObXI5lgMS",
+                "dataElementName": "Matrix | Data de Nascimento",
+                "attribute": "zLCZavzzwCI",
+                "attributeName": "SB | Idade (#)"
+            }
+        ]
+    },
+    "demographic": [
+        {
+            "dataElement": "wFvAoLyncDd",
+            "dataElementName": "Matrix | Nome Completo do Beneficiário (MRP)",
+            "attribute": "PP0L2IEL4Dm",
+            "attributeName": "SB | Nome Completo do Membro"
+        },
+        {
+            "dataElement": "aNSp2Vlubzo",
+            "dataElementName": "Matrix | Sexo",
+            "attribute": "QZWrwRQ0CRe",
+            "attributeName": "SB | Sexo 2"
+        },
+        {
+            "dataElement": "W0ObXI5lgMS",
+            "dataElementName": "Matrix | Data de Nascimento",
+            "attribute": "zLCZavzzwCI",
+            "attributeName": "SB | Idade (#)"
+        }
+    ]
+}
