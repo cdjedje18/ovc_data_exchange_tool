@@ -1,0 +1,44 @@
+name: Build macOS executable
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch: {}
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Upgrade pip and install build deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install --no-cache-dir pyinstaller
+          if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.txt; fi
+
+      - name: Build macOS app with PyInstaller
+        run: |
+          # Use the project's main entry point (fall back to main.py)
+          ENTRY=${{ env.ENTRY_POINT }}
+          if [ -z "$ENTRY" ]; then
+            if [ -f entry_point.py ]; then ENTRY=entry_point.py
+            elif [ -f data_exchange_entry_point.py ]; then ENTRY=data_exchange_entry_point.py
+            elif [ -f main.py ]; then ENTRY=main.py
+            else ENTRY=main.py
+            fi
+          fi
+          echo "Using entry point: $ENTRY"
+          pyinstaller --noconfirm --clean --windowed --onefile --name ovc_data_exchange "$ENTRY"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-app
+          path: dist/ovc_data_exchange*
