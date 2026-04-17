@@ -22,7 +22,7 @@ def execute():
         orgunit_mapping=None,
         relationship_mapping=None,
         async_import=False,
-        include_relationships=False,
+        include_relationships=True,
         orgunits=[{'id': 'xQhK3CB3nVw', 'name': 'CIDADE DE INHAMBANE'}]
     )
 
