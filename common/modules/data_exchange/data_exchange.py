@@ -4,6 +4,7 @@ from dhis2_client.errors import DHIS2HTTPError
 import urllib3
 from common import constants
 from common.modules.data_exchange import handle_transfomation
+from common.modules.load_modules.load_data import create_client
 from common.utils import utils
 import os
 import json
@@ -16,6 +17,37 @@ import requests
 def get_logger():
     logger = utils.set_logger(log_file="extract_data.log")
     return logger
+
+
+
+def get_program_details(program: dict, client: DHIS2Client):
+
+    params = dict()
+
+    if program['programType'] == constants.TRACKER_PROGRAM_TYPE:
+        params = {"fields": "id,name,programTrackedEntityAttributes[trackedEntityAttribute[id,name,valueType]],programStages[id,name,programStageDataElements[dataElement[id,name,valueType]]]"}
+    if program['programType'] == constants.EVENT_PROGRAM_TYPE:
+        params = {"fields": "id,name,programStages[id,name,programStageDataElements[dataElement[id,name,valueType]]]"}
+    
+    program_data = client.get(f"/api/programs/{program['id']}", params=params)
+
+    program_stages_data = dict()
+    for stage in program_data.get("programStages", []):
+        stage_data_element_list = dict()
+
+        for stage_data_element in stage.get("programStageDataElements", []):
+            data_element_id = stage_data_element['dataElement']['id']
+            stage_data_element_list[data_element_id] = stage_data_element['dataElement']
+
+        program_stages_data[stage['id']] = stage_data_element_list
+   
+    program_details = {
+        "id": program_data['id'],
+        "attributes":  {attribute['trackedEntityAttribute']['id']: attribute['trackedEntityAttribute'] for attribute in program_data.get("programTrackedEntityAttributes", [])} if program['programType'] == constants.TRACKER_PROGRAM_TYPE else None,
+        "programStages": program_stages_data
+    }
+
+    return program_details
 
 
 
@@ -137,7 +169,7 @@ def send_data_to_destiny(data: dict, execution_config: DataExchangeExecutionConf
 
     try:
         # print(json.dumps(data))
-        results = client.post(f"/api/tracker.json", json=data, params={"async": execution_config.async_import})
+        results = client.post(f"/api/tracker.json", json=data, params={"async": execution_config.async_import, "skipRuleEngine": True, "validationMode": "SKIP"})
         print(f"✅ Import summary: {results['stats']}")
         return results
     
@@ -165,7 +197,7 @@ def reset_data_folder(program_id: str):
 
 
 
-def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_client: DHIS2Client, destiny_client: DHIS2Client):
+def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_client: DHIS2Client, destiny_client: DHIS2Client, program_details: dict):
 
     endpoint_tracker = generate_endpoint(execution_config.program)
     fields_tracker = generate_fields(program=execution_config.program, execution_config=execution_config)
@@ -197,7 +229,7 @@ def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_
                 # with open(f"{folder_tracker}/{page}_original.txt", "w", encoding="utf8") as f:
                 #     f.write(json.dumps(data_to_transform))
                 
-                data_to_send = { "trackedEntities": handle_transfomation.transform_tracker_payload(source_payload=data_to_transform, execution_config=execution_config, orgunit_mapping_hash=orgunit_mapping_dict, relationship_mapping_hash=relationship_mapping_dict)}
+                data_to_send = { "trackedEntities": handle_transfomation.transform_tracker_payload(source_payload=data_to_transform, execution_config=execution_config, orgunit_mapping_hash=orgunit_mapping_dict, relationship_mapping_hash=relationship_mapping_dict, program_details=program_details)}
 
                 with open(f"{folder_tracker}/{page}_transformed.txt", "w", encoding="utf8") as f:
                     f.write(json.dumps(data_to_send))
@@ -214,7 +246,7 @@ def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_
     
 
 
-def handle_event(execution_config: DataExchangeExecutionConfig, origin_client: DHIS2Client, destiny_client: DHIS2Client):
+def handle_event(execution_config: DataExchangeExecutionConfig, origin_client: DHIS2Client, destiny_client: DHIS2Client, program_details: dict):
 
     endpoint_event = constants.EVENT_ENDPOINT
     fields_event = generate_fields(program=execution_config.program, execution_config=execution_config)
@@ -242,7 +274,7 @@ def handle_event(execution_config: DataExchangeExecutionConfig, origin_client: D
                 print(f"✅ {len(data[endpoint_event]) if endpoint_event in data else len(data[constants.INSTANCES])} Data downloaded for {orgunit['name']} orgunit")
 
                 data_to_transform =  data[endpoint_event] if endpoint_event in data else data[constants.INSTANCES]
-                data_to_send = { "events": handle_transfomation.transform_event_payload(source_payload=data_to_transform, execution_config=execution_config, orgunit_mapping_hash=orgunit_mapping_dict)}
+                data_to_send = { "events": handle_transfomation.transform_event_payload(source_payload=data_to_transform, execution_config=execution_config, orgunit_mapping_hash=orgunit_mapping_dict, program_details=program_details)}
                 print(f"Sending events to destiny server for program {execution_config.program['name']} at {orgunit['name']} orgunit: page {page} / {program_pager_event['pageCount']}")
                 
                 send_result = send_data_to_destiny(data=data_to_send, execution_config=execution_config, client=destiny_client)
@@ -265,12 +297,17 @@ def execute(execution_config: DataExchangeExecutionConfig):
 
     destiny_client = create_client(config=utils.get_config_file()['destinyServer'])
 
+    program_details = get_program_details(program=execution_config.program, client=destiny_client)
+
+    with open(f"results/{execution_config.program['id']}_program_details.txt", "w", encoding="utf8") as f:
+        f.write(json.dumps(program_details))
+
     if execution_config.program['programType'] == constants.TRACKER_PROGRAM_TYPE:
         # Tracker part
-        handle_tracked_entity(execution_config=execution_config, origin_client=origin_client, destiny_client=destiny_client)
+        handle_tracked_entity(execution_config=execution_config, origin_client=origin_client, destiny_client=destiny_client, program_details=program_details)
         
     if execution_config.program['programType'] == constants.EVENT_PROGRAM_TYPE:
-        handle_event(execution_config=execution_config, origin_client=origin_client, destiny_client=destiny_client)
+        handle_event(execution_config=execution_config, origin_client=origin_client, destiny_client=destiny_client, program_details=program_details)
 
     
 
