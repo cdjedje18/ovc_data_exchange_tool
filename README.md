@@ -21,3 +21,9 @@ pip install -r requirements.txt
 ```sh
 python main.py
 ```
+
+
+### 5. Criação do executavel
+```sh
+pyinstaller --onefile --noconsole main.py
+```

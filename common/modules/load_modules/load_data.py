@@ -27,7 +27,7 @@ def send_data_to_destiny(data: dict, client: DHIS2Client):
     
     try:
         # print(json.dumps(data))
-        results = client.post(f"/api/tracker.json", json=data, params={"async": False})
+        results = client.post(f"/api/tracker.json", json=data, params={"async": False, "skipRuleEngine": True, "validationMode": "SKIP"})
         print(f"✅ Import summary: {results['stats']}")
         return results
     
