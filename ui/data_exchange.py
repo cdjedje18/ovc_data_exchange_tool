@@ -265,6 +265,9 @@ def create_data_exchange_frame(parent, show_frame):
     run_button = ctk.CTkButton(form_frame, text="Run Data Exchange", width=180)
     run_button.grid(row=9, column=0, columnspan=2, pady=15)
 
+    cancel_button = ctk.CTkButton(form_frame, text="Cancel Execution", width=180, state="disabled")
+    cancel_button.grid(row=10, column=0, columnspan=2, pady=(0, 8))
+
     def reset_program_logs():
         if not selected_program.get() or selected_program.get().startswith("<failed"):
             append_log("[ERROR] Program must be selected and loaded correctly")
@@ -276,10 +279,10 @@ def create_data_exchange_frame(parent, show_frame):
         append_log(f"[INFO] Data logs reset for program {program_id}")
 
     reset_button = ctk.CTkButton(form_frame, text="Reset Data Logs", width=180, command=reset_program_logs)
-    reset_button.grid(row=10, column=0, columnspan=2, pady=(0, 8))
+    reset_button.grid(row=11, column=0, columnspan=2, pady=(0, 8))
 
     clear_button = ctk.CTkButton(form_frame, text="Clear Prints", width=180, command=lambda: log_text.delete('1.0', 'end'))
-    clear_button.grid(row=11, column=0, columnspan=2, pady=(0, 15))
+    clear_button.grid(row=12, column=0, columnspan=2, pady=(0, 15))
 
     # Right log area
     log_frame = ctk.CTkFrame(content)
@@ -288,21 +291,48 @@ def create_data_exchange_frame(parent, show_frame):
     log_text.pack(fill="both", expand=True)
 
     log_queue = queue.Queue()
+    execution_thread = None
+    cancel_event = None
 
     def append_log(message: str):
         log_text.insert("end", f"{message}\n")
         log_text.see("end")
 
     def process_queue():
+        nonlocal execution_thread, cancel_event
         try:
             while True:
                 line = log_queue.get_nowait()
                 append_log(line)
         except queue.Empty:
             pass
+
+        if execution_thread is not None and not execution_thread.is_alive():
+            run_button.configure(state="normal")
+            cancel_button.configure(state="disabled")
+            execution_thread = None
+            cancel_event = None
+
         parent.after(100, process_queue)
 
+    def cancel_data_exchange():
+        nonlocal execution_thread, cancel_event
+        if execution_thread is None or not execution_thread.is_alive() or cancel_event is None:
+            append_log("[INFO] No active execution to cancel.")
+            return
+
+        cancel_event.set()
+        append_log("[INFO] Cancellation requested. Finishing current in-flight step before stopping.")
+
+    cancel_button.configure(command=cancel_data_exchange)
+
     def run_data_exchange():
+        nonlocal execution_thread, cancel_event
+
+        if execution_thread is not None and execution_thread.is_alive():
+            append_log("[WARN] Data exchange is already running.")
+            return
+
         if not selected_program.get() or selected_program.get().startswith("<failed"):
             append_log("[ERROR] Program must be selected and loaded correctly")
             return
@@ -371,6 +401,10 @@ def create_data_exchange_frame(parent, show_frame):
             orgunits=orgunits,
         )
 
+        run_button.configure(state="disabled")
+        cancel_button.configure(state="normal")
+        cancel_event = threading.Event()
+
         def worker():
             class StdoutCapture:
                 def write(self, text):
@@ -383,15 +417,18 @@ def create_data_exchange_frame(parent, show_frame):
             old_stdout = sys.stdout
             sys.stdout = StdoutCapture()
             try:
-                execute(execution_config)
-                log_queue.put("[SUCCESS] execute() completed")
+                execute(execution_config, cancel_event=cancel_event)
+                if cancel_event.is_set():
+                    log_queue.put("[INFO] execute() cancelled")
+                else:
+                    log_queue.put("[SUCCESS] execute() completed")
             except Exception as e:
                 log_queue.put(f"[ERROR] execute() failed: {e}")
             finally:
                 sys.stdout = old_stdout
 
-        thread = threading.Thread(target=worker, daemon=True)
-        thread.start()
+        execution_thread = threading.Thread(target=worker, daemon=True)
+        execution_thread.start()
 
     run_button.configure(command=run_data_exchange)
 
