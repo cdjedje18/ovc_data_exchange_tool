@@ -286,7 +286,7 @@ def _build_report_rows(
 
 
 def generate_report(orgunit: dict, all_valid_matchs, all_non_valid_matchs):
-    with open("harmonization_report_strucure.json", "r", encoding="utf8") as f:
+    with open("harmonization_report_structure.json", "r", encoding="utf8") as f:
         report_structure = json.load(f)
 
     data_folder = f"results/evaluator_module/{orgunit['id']}"
@@ -341,7 +341,7 @@ def generate_report(orgunit: dict, all_valid_matchs, all_non_valid_matchs):
 
 
 def generate_report_non_processed_events(orgunit: dict, not_processed_events: list):
-    with open("harmonization_report_strucure.json", "r", encoding="utf8") as f:
+    with open("harmonization_report_structure.json", "r", encoding="utf8") as f:
         report_structure = json.load(f)
 
     data_folder = f"results/evaluator_module/{orgunit['id']}"

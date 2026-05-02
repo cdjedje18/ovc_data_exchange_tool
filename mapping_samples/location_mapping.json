@@ -1,6 +1,6 @@
 {
     "name": "Sample Mapping 1",
-    "mappings": [
+    "mapping": [
         {
             "source": "",
             "target": ""

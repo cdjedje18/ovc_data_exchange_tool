@@ -144,6 +144,7 @@ config.json
 config.bak.json
 /control
 /mappings
+/build
 
 
 data.txt

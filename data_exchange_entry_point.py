@@ -18,12 +18,12 @@ def execute():
     execution_config = data_exchange.DataExchangeExecutionConfig(
         program=harmonize_config['otherPrograms'][0],
         page_size=10,
-        variable_mapping=data_mapping,
+        variable_mapping=None,
         orgunit_mapping=None,
         relationship_mapping=None,
         async_import=False,
-        include_relationships=False,
-        # orgunits=[{'id': 'HMx8Rj0TyNh', 'name': 'CIDADE DE INHAMBANE'}]
+        include_relationships=True,
+        orgunits=[{'id': 'xQhK3CB3nVw', 'name': 'CIDADE DE INHAMBANE'}]
     )
 
     data_exchange.execute(execution_config=execution_config)
