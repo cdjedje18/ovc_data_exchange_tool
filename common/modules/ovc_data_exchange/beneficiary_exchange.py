@@ -101,7 +101,7 @@ def download_family_data_tracked_entities(endpoint: str, fields: str, page: int,
 
     family_data = []
 
-    params = {"program": execution_config.beneficiary_program['id'], "page": page, "fields": fields, "pageSize": execution_config.page_size}
+    params = {"program": execution_config.family_program['id'], "page": page, "fields": fields, "pageSize": execution_config.page_size}
     if orgunit is not None and orgunit != "ALL":
         params.update({ "ouMode": "DESCENDANTS", "orgUnit": orgunit})
     else:
@@ -238,6 +238,9 @@ def execute(execution_config: OvcDataExchangeExecutionConfig):
 
     program_details = get_program_details(program=execution_config.beneficiary_program, client=destiny_client)
 
+    # with open("program_details.json", "w", encoding="utf8") as f:
+    #     f.write(json.dumps(program_details))
+
     orgunits = execution_config.orgunits if execution_config.orgunits is not None else [{ "id": "ALL" , "name": "All orgunits"}]
 
     for orgunit in orgunits:
@@ -245,7 +248,7 @@ def execute(execution_config: OvcDataExchangeExecutionConfig):
         folder_tracker = f"control/ovc_data_exchange/beneficiary_data/data/{orgunit['id']}/{execution_config.page_size}"
         os.makedirs(folder_tracker, exist_ok=True)
 
-        program_pager_tracker = get_total_data(program=execution_config.beneficiary_program['id'], endpoint=endpoint_tracker, orgunit=orgunit['id'], page_size=execution_config.page_size, client=destiny_client)
+        program_pager_tracker = get_total_data(program=execution_config.family_program['id'], endpoint=endpoint_tracker, orgunit=orgunit['id'], page_size=execution_config.page_size, client=destiny_client)
 
         if program_pager_tracker['pageCount'] > 0:
 
@@ -255,7 +258,7 @@ def execute(execution_config: OvcDataExchangeExecutionConfig):
                     print(f"⚠️ Data for {execution_config.beneficiary_program['name']} tracker page {page} already processed, skipping.")
                     continue
             
-                print(f"Downloading data for family program {execution_config.beneficiary_program['name']} at {orgunit['name']} orgunit: page {page} / {program_pager_tracker['pageCount']}")
+                print(f"Downloading data for family program {execution_config.family_program['name']} at {orgunit['name']} orgunit: page {page} / {program_pager_tracker['pageCount']}")
                 family_tracker_entities = download_family_data_tracked_entities(endpoint=endpoint_tracker, fields=FAMILY_FIELDS, page=page, execution_config=execution_config, orgunit=orgunit['id'], origin_client=origin_client, destiny_client=destiny_client)
                 print(f"✅ {len(family_tracker_entities)} Family Data downloaded for {orgunit['name']} orgunit")
                 
@@ -291,7 +294,9 @@ def execute(execution_config: OvcDataExchangeExecutionConfig):
                     continue
                 with open(f"{folder_tracker}/{page}_transformed.txt", "w", encoding="utf8") as f:
                     f.write(json.dumps(transformed_data))
-                # return send_data_to_destiny(data=transformed_data, execution_config=execution_config, client=destiny_client)
+
+                    
+                send_data_to_destiny(data={'trackedEntities': transformed_data}, execution_config=execution_config, client=destiny_client)
 
 
 if __name__ == '__main__':

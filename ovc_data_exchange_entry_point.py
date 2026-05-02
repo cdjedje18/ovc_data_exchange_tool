@@ -15,7 +15,7 @@ def execute():
 
     execution_config = OvcDataExchangeExecutionConfig(
         family_program={"name":"Registo e seguimento de FAMÍLIAS","programType":"WITH_REGISTRATION","id":"iSPc45re0MZ"},
-        beneficiary_program={"name":"Registo e seguimento de FAMÍLIAS","programType":"WITH_REGISTRATION","id":"iSPc45re0MZ"},
+        beneficiary_program={"name":"Seguimento de BENEFICIÁRIOS","programType":"WITH_REGISTRATION","id":"pVgO58r40Au"},
         family_waiver_attribute="ntogDt6vKk5",
         beneficiary_waiver_attribute="ntogDt6vKk5",
         page_size=1,
