@@ -1,9 +1,12 @@
 from copy import deepcopy
+import json
+import os
 from typing import Any
 
 from dhis2_client import DHIS2Client
 from dhis2_client.errors import DHIS2HTTPError
 
+from common import constants
 from common.modules.data_exchange import handle_transfomation
 from common.modules.load_modules.load_data import create_client
 from common.modules.mixins.DataExchangeExecutionConfig import DataExchangeExecutionConfig, OvcDataExchangeExecutionConfig
@@ -14,6 +17,34 @@ TRACKER_ENDPOINT = "trackedEntities"
 TRACKER_FIELDS = "*,!createdBy,!updatedBy,!relationships,enrollments[*,events[*,!createdBy,!updatedBy],!attributes]"
 
 
+
+
+
+
+def get_total_data(program:str, endpoint:str, orgunit:str, page_size:int, client: DHIS2Client):
+
+    results = client.get(f"/api/tracker/{endpoint}.json", params={"totalPages": True, "program": program, "orgUnit": orgunit, "ouMode": "DESCENDANTS", "pageSize": page_size, "fields": "created"})
+    # logger.info(f"Downloaded {len(results['organisationUnits'])} organisation units")
+    return results
+
+
+def downloading_data_tracked_entities(endpoint: str, fields: str, page: int, execution_config: DataExchangeExecutionConfig, orgunit: str | None, client: DHIS2Client = None) -> dict:
+
+    # logger = get_logger()
+    # logging.info(f"Download TEIs")
+
+    params = {"program": execution_config.family_program['id'], "page": page, "fields": fields, "pageSize": execution_config.page_size}
+    if orgunit is not None and orgunit != "ALL":
+        params.update({ "ouMode": "DESCENDANTS", "orgUnit": orgunit})
+    else:
+        params.update({"ouMode": "ACCESSIBLE"})
+    
+    results = client.get(f"/api/tracker/{endpoint}.json", params=params)
+    # print(type(results))
+    return results
+
+
+
 def _is_truthy(value: Any) -> bool:
     if isinstance(value, bool):
         return value
@@ -22,52 +53,15 @@ def _is_truthy(value: Any) -> bool:
     return str(value).strip().lower() in {"true", "1", "yes", "sim"}
 
 
-def download_data(execution_config: OvcDataExchangeExecutionConfig, client: DHIS2Client) -> list[dict]:
-    tracked_entities: list[dict] = []
-    orgunits = execution_config.orgunits if execution_config.orgunits else [{"id": "ALL", "name": "All orgunits"}]
-
-    for orgunit in orgunits:
-        page = 1
-        while True:
-            params = {
-                "program": execution_config.family_program["id"],
-                "page": page,
-                "pageSize": execution_config.page_size,
-                "fields": TRACKER_FIELDS,
-            }
-
-            orgunit_id = orgunit.get("id")
-            if orgunit_id and orgunit_id != "ALL":
-                params.update({"ouMode": "DESCENDANTS", "orgUnit": orgunit_id})
-            else:
-                params.update({"ouMode": "ACCESSIBLE"})
-
-            results = client.get(f"/api/tracker/{TRACKER_ENDPOINT}.json", params=params)
-            page_data = results.get(TRACKER_ENDPOINT, results.get("instances", []))
-
-            if not page_data:
-                break
-
-            tracked_entities.extend(page_data)
-
-            pager = results.get("pager", {})
-            page_count = pager.get("pageCount")
-            if page_count and page >= page_count:
-                break
-
-            page += 1
-
-    return tracked_entities
-
-
 def filter_data(tracker_entities: list[dict], execution_config: OvcDataExchangeExecutionConfig) -> list[dict]:
     valid_data: list[dict] = []
 
     for tracked_entity in tracker_entities:
-        waiver_attribute = next(
-            (item for item in tracked_entity.get("attributes", []) if item.get("attribute") == execution_config.family_waiver_attribute),
-            None,
-        )
+        waiver_attribute = None
+        for attribute in tracked_entity.get("attributes", []):
+            if attribute.get("attribute") == execution_config.family_waiver_attribute:
+                waiver_attribute = attribute
+                break
 
         if waiver_attribute is None:
             continue
@@ -118,33 +112,27 @@ def transform_data(valid_tracked_entities: list[dict], execution_config: OvcData
     )
 
 
-def load_data(data: list[dict], execution_config: OvcDataExchangeExecutionConfig, client: DHIS2Client):
-    if not data:
-        print("[INFO] No data to load.")
-        return None
-
-    payload = {"trackedEntities": data}
+def send_data_to_destiny(data: dict, execution_config: OvcDataExchangeExecutionConfig, client: DHIS2Client = None):
 
     try:
-        results = client.post(
-            "/api/tracker.json",
-            json=payload,
-            params={
-                "async": execution_config.async_import,
-                "skipRuleEngine": True,
-                "validationMode": "SKIP",
-            },
-        )
-        print(f"✅ Import summary: {results.get('stats')}")
+        # print(json.dumps(data))
+        results = client.post(f"/api/tracker.json", json=data, params={"async": execution_config.async_import, "skipRuleEngine": True, "validationMode": "SKIP"})
+        print(f"✅ Import summary: {results['stats']}")
         return results
+    
     except DHIS2HTTPError as e:
+        # print(e.payload)
         print("❌ Error sending data to destiny server")
-        error_details = [report.get("message") for report in e.payload.get("validationReport", {}).get("errorReports", [])]
-        print(f"❌ Import summary: {e.payload.get('stats')} {' | '.join(error_details)}")
+        error_details = [report.get("message") for report in e.payload.get('validationReport', {}).get("errorReports", [])]
+        # print(error_details)
+        print(f"❌ Import summary: {e.payload['stats']}", *error_details)
         return None
 
 
 def execute(execution_config: OvcDataExchangeExecutionConfig):
+
+    endpoint_tracker = TRACKER_ENDPOINT
+
     config = utils.get_config_file()
     origin_server = config.get("originServer")
     destiny_server = config.get("destinyServer")
@@ -155,17 +143,44 @@ def execute(execution_config: OvcDataExchangeExecutionConfig):
     origin_client = create_client(config=origin_server)
     destiny_client = create_client(config=destiny_server)
 
-    tracker_entities = download_data(execution_config=execution_config, client=origin_client)
-    print(f"Downloaded {len(tracker_entities)} tracked entities from origin server.")
-    print(f"Filtering data based on waiver attribute '{execution_config.family_waiver_attribute}'...")
+    orgunits = execution_config.orgunits if execution_config.orgunits is not None else [{ "id": "ALL" , "name": "All orgunits"}]
 
-    valid_data = filter_data(tracker_entities=tracker_entities, execution_config=execution_config)
-    print(f"Filtered {len(valid_data)} tracked entities based on waiver attribute '{execution_config.family_waiver_attribute}'.")
+    for orgunit in orgunits:
 
-    transformed_data = transform_data(valid_tracked_entities=valid_data, execution_config=execution_config)
-    print(f"Transformed {len(transformed_data)} tracked entities.")
-    
-    return load_data(data=transformed_data, execution_config=execution_config, client=destiny_client)
+        folder_tracker = f"control/ovc_data_exchange/{execution_config.family_program['id']}/data/{orgunit['id']}/{execution_config.page_size}"
+        os.makedirs(folder_tracker, exist_ok=True)
+
+        program_pager_tracker = get_total_data(program=execution_config.family_program['id'], endpoint=endpoint_tracker, orgunit=orgunit['id'], page_size=execution_config.page_size, client=origin_client)
+
+        if program_pager_tracker['pageCount'] > 0:
+
+            for page in range(1, program_pager_tracker['pageCount'] + 1):
+
+                if os.path.exists(f"{folder_tracker}/{page}.txt"):
+                    print(f"⚠️ Data for {execution_config.family_program['name']} tracker page {page} already processed, skipping.")
+                    continue
+            
+                print(f"Downloading data for program {execution_config.family_program['name']} at {orgunit['name']} orgunit: page {page} / {program_pager_tracker['pageCount']}")
+                tracker_entities = downloading_data_tracked_entities(endpoint=endpoint_tracker, fields=TRACKER_FIELDS, page=page, execution_config=execution_config, orgunit=orgunit['id'], client=origin_client)
+                print(f"✅ {len(tracker_entities[endpoint_tracker]) if endpoint_tracker in tracker_entities else len(tracker_entities[constants.INSTANCES])} Data downloaded for {orgunit['name']} orgunit")
+                
+                tracked_entities = tracker_entities.get(endpoint_tracker, tracker_entities.get(constants.INSTANCES, []))
+
+                with open(f"{folder_tracker}/{page}_origin.txt", "w", encoding="utf8") as f:
+                    f.write(json.dumps(tracked_entities))
+
+                print(f"Filtering data based on waiver attribute '{execution_config.family_waiver_attribute}'...")
+
+                valid_data = filter_data(tracker_entities=tracked_entities, execution_config=execution_config)
+                print(f"✅ Filtered {len(valid_data)} tracked entities based on waiver attribute '{execution_config.family_waiver_attribute}'.")
+
+                with open(f"{folder_tracker}/{page}_valid.txt", "w", encoding="utf8") as f:
+                    f.write(json.dumps(valid_data))
+
+                transformed_data = transform_data(valid_tracked_entities=valid_data, execution_config=execution_config)
+                print(f"Transformed {len(transformed_data)} tracked entities.")
+
+                return send_data_to_destiny(data=transformed_data, execution_config=execution_config, client=destiny_client)
 
 
 if __name__ == '__main__':
