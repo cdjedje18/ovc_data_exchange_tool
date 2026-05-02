@@ -52,7 +52,7 @@ def _get_orgunit_from_mapping_hash(source_orgunit: str, orgunit_mapping_hash: di
 
 
 def _generate_relationships_from_mapping_hash(source_relationships: list, relationship_mapping_hash: dict | None) -> str:
-    
+
     if relationship_mapping_hash is None:
         return source_relationships
 

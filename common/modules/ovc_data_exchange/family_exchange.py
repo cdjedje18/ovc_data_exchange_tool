@@ -179,8 +179,12 @@ def execute(execution_config: OvcDataExchangeExecutionConfig):
 
                 transformed_data = transform_data(valid_tracked_entities=valid_data, execution_config=execution_config)
                 print(f"Transformed {len(transformed_data)} tracked entities.")
-
-                return send_data_to_destiny(data=transformed_data, execution_config=execution_config, client=destiny_client)
+                
+                if len(transformed_data) == 0:
+                    print("⚠️ No data to send to destiny server after transformation, skipping sending data.")
+                    continue
+                
+                send_data_to_destiny(data={'trackedEntities': transformed_data}, execution_config=execution_config, client=destiny_client)
 
 
 if __name__ == '__main__':
