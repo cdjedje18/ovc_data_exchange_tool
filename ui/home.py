@@ -27,5 +27,6 @@ def create_home_frame(parent, show_frame):
     make_card("Mappings", "mappings_hub")
     make_card("Harmonization", "harmonization")
     make_card("Data Exchange", "data_exchange")
+    make_card("OVC Data Exchange", "ovc_data_exchange")
 
     return frame

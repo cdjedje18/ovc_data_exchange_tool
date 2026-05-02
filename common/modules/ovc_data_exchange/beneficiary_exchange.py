@@ -32,6 +32,10 @@ def _is_truthy(value: Any) -> bool:
     return str(value).strip().lower() in {"true", "1", "yes", "sim"}
 
 
+def _is_cancelled(cancel_event=None) -> bool:
+    return bool(cancel_event and cancel_event.is_set())
+
+
 def get_total_data(program:str, endpoint:str, orgunit:str, page_size:int, client: DHIS2Client):
 
     results = client.get(f"/api/tracker/{endpoint}.json", params={"totalPages": True, "program": program, "orgUnit": orgunit, "ouMode": "DESCENDANTS", "pageSize": page_size, "fields": "created"})
@@ -222,7 +226,7 @@ def send_data_to_destiny(data: dict, execution_config: OvcDataExchangeExecutionC
         return None
 
 
-def execute(execution_config: OvcDataExchangeExecutionConfig):
+def execute(execution_config: OvcDataExchangeExecutionConfig, cancel_event=None):
 
     endpoint_tracker = TRACKER_ENDPOINT
 
@@ -244,6 +248,9 @@ def execute(execution_config: OvcDataExchangeExecutionConfig):
     orgunits = execution_config.orgunits if execution_config.orgunits is not None else [{ "id": "ALL" , "name": "All orgunits"}]
 
     for orgunit in orgunits:
+        if _is_cancelled(cancel_event):
+            print("[INFO] Cancellation requested. Stopping beneficiary exchange.")
+            return
 
         folder_tracker = f"control/ovc_data_exchange/beneficiary_data/data/{orgunit['id']}/{execution_config.page_size}"
         os.makedirs(folder_tracker, exist_ok=True)
@@ -253,6 +260,9 @@ def execute(execution_config: OvcDataExchangeExecutionConfig):
         if program_pager_tracker['pageCount'] > 0:
 
             for page in range(1, program_pager_tracker['pageCount'] + 1):
+                if _is_cancelled(cancel_event):
+                    print("[INFO] Cancellation requested. Stopping beneficiary exchange.")
+                    return
 
                 if os.path.exists(f"{folder_tracker}/{page}.txt"):
                     print(f"⚠️ Data for {execution_config.beneficiary_program['name']} tracker page {page} already processed, skipping.")
@@ -289,6 +299,11 @@ def execute(execution_config: OvcDataExchangeExecutionConfig):
 
                 transformed_data = transform_data(valid_tracked_entities=valid_data, execution_config=execution_config, program_details=program_details)
                 print(f"Transformed {len(transformed_data)} tracked entities.")
+
+                if _is_cancelled(cancel_event):
+                    print("[INFO] Cancellation requested. Stopping beneficiary exchange.")
+                    return
+
                 if len(transformed_data) == 0:
                     print("⚠️ No data to send to destiny server after transformation, skipping sending data.")
                     continue
