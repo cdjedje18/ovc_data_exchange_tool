@@ -178,31 +178,46 @@ def _generate_event_data_values(
 ) -> List[dict]:
     
     target_data_values = []
-    for data_value_mapping in mapping.get("mapping", []):
-        value = None
-        source_config = data_value_mapping.get("source", {})
 
-        if source_config.get("type") == "default":
-            value = source_config.get("value")
+    if mapping is None:
+        for dv in source_event.get("dataValues", []):
+            if program_details and source_event.get("programStage") in program_details.get("programStages", {}) and dv.get("dataElement") in program_details.get("programStages", {}).get(source_event.get("programStage"), {}):
+                value_type = program_details.get("programStages", {}).get(source_event.get("programStage"), {}).get(dv.get("dataElement"), {}).get("valueType")
+                target_data_values.append({
+                    "dataElement": dv.get("dataElement"),
+                    "value": _generate_value(dv.get("value"), value_type)
+                })
+            else:
+                target_data_values.append(dv)
+
+        return target_data_values
     
-        else:
-            for dv in source_event.get("dataValues", []):
+    else:
+        for data_value_mapping in mapping.get("mapping", []):
+            value = None
+            source_config = data_value_mapping.get("source", {})
 
-                if dv.get("dataElement") == source_config.get("id"):
-                    
-                    data_element_details = program_details.get("programStages", {}).get(source_event['programStage'], {}).get(dv['dataElement'], {}) if program_details else {}
+            if source_config.get("type") == "default":
+                value = source_config.get("value")
+        
+            else:
+                for dv in source_event.get("dataValues", []):
 
-                    if not data_element_details:
-                        continue
+                    if dv.get("dataElement") == source_config.get("id"):
                         
-                    source_data_value = dv.get("value")
-                    value = _get_value_from_mapping(source_data_value, data_value_mapping, data_element_details.get("valueType"))
-                    break
+                        data_element_details = program_details.get("programStages", {}).get(source_event['programStage'], {}).get(dv['dataElement'], {}) if program_details else {}
 
-        target_data_values.append({
-            "dataElement": data_value_mapping.get("target").get("id"),
-            "value": value
-        })
+                        if not data_element_details:
+                            continue
+                            
+                        source_data_value = dv.get("value")
+                        value = _get_value_from_mapping(source_data_value, data_value_mapping, data_element_details.get("valueType"))
+                        break
+
+            target_data_values.append({
+                "dataElement": data_value_mapping.get("target").get("id"),
+                "value": value
+            })
 
     return target_data_values
 
@@ -301,10 +316,11 @@ def transform_single_tei(
 def transform_single_event(
     source_event: dict,
     data_mapping: dict,
-    orgunit_mapping_hash: dict
+    orgunit_mapping_hash: dict,
+    program_details: dict | None
 ) -> dict:
     
-    program_stage_mapping = get_program_stage_mapping_for_event(source_event, data_mapping.get("programStageMappings", []))
+    program_stage_mapping = data_mapping.get("mapping", []) if data_mapping and data_mapping.get("mapping") else None
 
     new_event = {
         **source_event,
@@ -312,7 +328,8 @@ def transform_single_event(
         "programStage": program_stage_mapping.get("target").get("programStageId") if program_stage_mapping else source_event.get("programStage"),
         "dataValues": _generate_event_data_values(
             source_event=source_event,
-            data_value_mappings=program_stage_mapping
+            mapping=program_stage_mapping,
+            program_details=program_details
         )
     }
 
@@ -356,10 +373,10 @@ def transform_event_payload(
 
     data_mapping = execution_config.variable_mapping
 
-    if not data_mapping:
-        return source_payload.get("events", [])  # No mapping provided, return as is
+    # if not data_mapping:
+    #     return source_payload.get("events", [])  # No mapping provided, return as is
 
-    events = source_payload.get("events", [])
+    events = source_payload
 
     new_events = []
     for source_event in events:

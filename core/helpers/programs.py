@@ -39,5 +39,18 @@ def get_program_attributes(program: dict, client: DHIS2Client):
 
     return [attribute['trackedEntityAttribute'] for attribute in program_data.get("programTrackedEntityAttributes", [])]
 
+
+def get_program_data_elements(program: dict, client: DHIS2Client):
+
+    params = dict()
+
+    params = {"fields": "id,name,programStages[id,name,programStageDataElements[dataElement[id,name,valueType]]]"}
+    
+    program_data = client.get(f"/api/programs/{program['id']}", params=params)
+
+    return [data_element['dataElement'] for stage in program_data.get("programStages", []) for data_element in stage.get("programStageDataElements", [])]
+
+
+
 if __name__ == "__main__":
     pass

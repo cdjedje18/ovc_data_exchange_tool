@@ -34,3 +34,15 @@ class OvcDataExchangeExecutionConfig:
     orgunit_mapping: dict = None
     relationship_mapping: dict = None
     orgunits: list | None = None
+
+
+
+@dataclass
+class MatrizDataExchangeExecutionConfig:
+    matriz_program: dict
+    matriz_waiver_data_element: str
+    page_size: int
+    async_import: bool
+    variable_mapping: dict = None
+    orgunit_mapping: dict = None
+    orgunits: list | None = None

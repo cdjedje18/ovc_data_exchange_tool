@@ -9,12 +9,12 @@ from dhis2_client.errors import DHIS2HTTPError
 from common import constants
 from common.modules.data_exchange import handle_transfomation
 from common.modules.load_modules.load_data import create_client
-from common.modules.mixins.DataExchangeExecutionConfig import DataExchangeExecutionConfig, OvcDataExchangeExecutionConfig
+from common.modules.mixins.DataExchangeExecutionConfig import DataExchangeExecutionConfig, MatrizDataExchangeExecutionConfig, OvcDataExchangeExecutionConfig
 from common.utils import utils
 
 
-TRACKER_ENDPOINT = "trackedEntities"
-TRACKER_FIELDS = "*,!createdBy,!updatedBy,!relationships,enrollments[*,events[*,!createdBy,!updatedBy],!attributes]"
+EVENT_ENDPOINT = "events"
+EVENT_FIELDS = "*,!createdBy,!updatedBy"
 
 
 
@@ -55,12 +55,12 @@ def get_program_details(program: dict, client: DHIS2Client):
     return program_details
 
 
-def downloading_data_tracked_entities(endpoint: str, fields: str, page: int, execution_config: DataExchangeExecutionConfig, orgunit: str | None, client: DHIS2Client = None) -> dict:
+def downloading_data_events(endpoint: str, fields: str, page: int, execution_config: MatrizDataExchangeExecutionConfig, orgunit: str | None, client: DHIS2Client = None) -> dict:
 
     # logger = get_logger()
     # logging.info(f"Download TEIs")
 
-    params = {"program": execution_config.family_program['id'], "page": page, "fields": fields, "pageSize": execution_config.page_size}
+    params = {"program": execution_config.matriz_program['id'], "page": page, "fields": fields, "pageSize": execution_config.page_size}
     if orgunit is not None and orgunit != "ALL":
         params.update({ "ouMode": "DESCENDANTS", "orgUnit": orgunit})
     else:
@@ -84,37 +84,40 @@ def _is_cancelled(cancel_event=None) -> bool:
     return bool(cancel_event and cancel_event.is_set())
 
 
-def filter_data(tracker_entities: list[dict], execution_config: OvcDataExchangeExecutionConfig) -> list[dict]:
+def filter_data(events: list[dict], execution_config: MatrizDataExchangeExecutionConfig) -> list[dict]:
     valid_data: list[dict] = []
 
-    for tracked_entity in tracker_entities:
-        waiver_attribute = None
-        for attribute in tracked_entity.get("attributes", []):
-            if attribute.get("attribute") == execution_config.family_waiver_attribute:
-                waiver_attribute = attribute
+    # print(events)
+    for event in events:
+        # print(event)
+        # print(type(events))
+        waiver_data_element = None
+        for data_element in event.get("dataValues", []):
+            if data_element.get("dataElement") == execution_config.matriz_waiver_data_element:
+                waiver_data_element = data_element
                 break
 
-        if waiver_attribute is None:
+        if waiver_data_element is None:
             continue
 
-        if _is_truthy(waiver_attribute.get("value")):
-            valid_data.append(tracked_entity)
+        if _is_truthy(waiver_data_element.get("value")):
+            valid_data.append(event)
 
     return valid_data
 
 
-def transform_data(valid_tracked_entities: list[dict], execution_config: OvcDataExchangeExecutionConfig, program_details: dict) -> list[dict]:
+def transform_data(valid_events: list[dict], execution_config: MatrizDataExchangeExecutionConfig, program_details: dict) -> list[dict]:
     # if not execution_config.variable_mapping:
     #     return valid_tracked_entities
 
     bridge_config = DataExchangeExecutionConfig(
-        program=execution_config.family_program,
+        program=execution_config.matriz_program,
         page_size=execution_config.page_size,
         async_import=execution_config.async_import,
         include_relationships=False,
         variable_mapping=execution_config.variable_mapping,
         orgunit_mapping=execution_config.orgunit_mapping,
-        relationship_mapping=execution_config.relationship_mapping,
+        relationship_mapping=None,
         orgunits=execution_config.orgunits,
     )
 
@@ -126,24 +129,15 @@ def transform_data(valid_tracked_entities: list[dict], execution_config: OvcData
             if item.get("sourceOrgUnit") and item.get("targetOrgUnit")
         }
 
-    relationship_mapping_hash = None
-    if execution_config.relationship_mapping and execution_config.relationship_mapping.get("mappings"):
-        relationship_mapping_hash = {
-            item["source"]: item["target"]
-            for item in execution_config.relationship_mapping.get("mappings", [])
-            if item.get("source") and item.get("target")
-        }
-
-    return handle_transfomation.transform_tracker_payload(
-        source_payload=deepcopy(valid_tracked_entities),
+    return handle_transfomation.transform_event_payload(
+        source_payload=deepcopy(valid_events),
         execution_config=bridge_config,
         orgunit_mapping_hash=orgunit_mapping_hash,
-        relationship_mapping_hash=relationship_mapping_hash,
         program_details=program_details,
     )
 
 
-def send_data_to_destiny(data: dict, execution_config: OvcDataExchangeExecutionConfig, client: DHIS2Client = None):
+def send_data_to_destiny(data: dict, execution_config: MatrizDataExchangeExecutionConfig, client: DHIS2Client = None):
 
     try:
         # print(json.dumps(data))
@@ -160,9 +154,9 @@ def send_data_to_destiny(data: dict, execution_config: OvcDataExchangeExecutionC
         return None
 
 
-def execute(execution_config: OvcDataExchangeExecutionConfig, cancel_event=None):
+def execute(execution_config: MatrizDataExchangeExecutionConfig, cancel_event=None):
 
-    endpoint_tracker = TRACKER_ENDPOINT
+    endpoint_tracker = EVENT_ENDPOINT
 
     config = utils.get_config_file()
     origin_server = config.get("originServer")
@@ -174,19 +168,19 @@ def execute(execution_config: OvcDataExchangeExecutionConfig, cancel_event=None)
     origin_client = create_client(config=origin_server)
     destiny_client = create_client(config=destiny_server)
 
-    program_details = get_program_details(program=execution_config.beneficiary_program, client=destiny_client)
+    program_details = get_program_details(program=execution_config.matriz_program, client=destiny_client)
 
     orgunits = execution_config.orgunits if execution_config.orgunits is not None else [{ "id": "ALL" , "name": "All orgunits"}]
 
     for orgunit in orgunits:
         if _is_cancelled(cancel_event):
-            print("[INFO] Cancellation requested. Stopping family exchange.")
+            print("[INFO] Cancellation requested. Stopping matriz exchange.")
             return
 
-        folder_tracker = f"control/ovc_data_exchange/{execution_config.family_program['id']}/data/{orgunit['id']}/{execution_config.page_size}"
+        folder_tracker = f"control/ovc_data_exchange/{execution_config.matriz_program['id']}/data/{orgunit['id']}/{execution_config.page_size}"
         os.makedirs(folder_tracker, exist_ok=True)
 
-        program_pager_tracker = get_total_data(program=execution_config.family_program['id'], endpoint=endpoint_tracker, orgunit=orgunit['id'], page_size=execution_config.page_size, client=origin_client)
+        program_pager_tracker = get_total_data(program=execution_config.matriz_program['id'], endpoint=endpoint_tracker, orgunit=orgunit['id'], page_size=execution_config.page_size, client=origin_client)
 
         if program_pager_tracker['pageCount'] > 0:
 
@@ -196,38 +190,37 @@ def execute(execution_config: OvcDataExchangeExecutionConfig, cancel_event=None)
                     return
 
                 if os.path.exists(f"{folder_tracker}/{page}.txt"):
-                    print(f"⚠️ Data for {execution_config.family_program['name']} tracker page {page} already processed, skipping.")
+                    print(f"⚠️ Data for {execution_config.matriz_program['name']} tracker page {page} already processed, skipping.")
                     continue
             
-                print(f"Downloading data for program {execution_config.family_program['name']} at {orgunit['name']} orgunit: page {page} / {program_pager_tracker['pageCount']}")
-                tracker_entities = downloading_data_tracked_entities(endpoint=endpoint_tracker, fields=TRACKER_FIELDS, page=page, execution_config=execution_config, orgunit=orgunit['id'], client=origin_client)
-                print(f"✅ {len(tracker_entities[endpoint_tracker]) if endpoint_tracker in tracker_entities else len(tracker_entities[constants.INSTANCES])} Data downloaded for {orgunit['name']} orgunit")
+                print(f"Downloading data for program {execution_config.matriz_program['name']} at {orgunit['name']} orgunit: page {page} / {program_pager_tracker['pageCount']}")
+                events = downloading_data_events(endpoint=endpoint_tracker, fields=EVENT_FIELDS, page=page, execution_config=execution_config, orgunit=orgunit['id'], client=origin_client)
+                events = events.get(endpoint_tracker, events.get(constants.INSTANCES, []))
+                print(f"✅ {len(events)} Data downloaded for {orgunit['name']} orgunit")
                 
-                tracked_entities = tracker_entities.get(endpoint_tracker, tracker_entities.get(constants.INSTANCES, []))
-
                 with open(f"{folder_tracker}/{page}_origin.txt", "w", encoding="utf8") as f:
-                    f.write(json.dumps(tracked_entities))
+                    f.write(json.dumps(events))
 
-                print(f"Filtering data based on waiver attribute '{execution_config.family_waiver_attribute}'...")
+                print(f"Filtering data based on waiver data element '{execution_config.matriz_waiver_data_element}'...")
 
-                valid_data = filter_data(tracker_entities=tracked_entities, execution_config=execution_config)
-                print(f"✅ Filtered {len(valid_data)} tracked entities based on waiver attribute '{execution_config.family_waiver_attribute}'.")
+                valid_data = filter_data(events=events, execution_config=execution_config)
+                print(f"✅ Filtered {len(valid_data)} events based on waiver data element '{execution_config.matriz_waiver_data_element}'.")
 
                 with open(f"{folder_tracker}/{page}_valid.txt", "w", encoding="utf8") as f:
                     f.write(json.dumps(valid_data))
 
-                transformed_data = transform_data(valid_tracked_entities=valid_data, execution_config=execution_config, program_details=program_details)
-                print(f"Transformed {len(transformed_data)} tracked entities.")
+                transformed_data = transform_data(valid_events=valid_data, execution_config=execution_config, program_details=program_details)
+                print(f"Transformed {len(transformed_data)} events.")
 
                 if _is_cancelled(cancel_event):
-                    print("[INFO] Cancellation requested. Stopping family exchange.")
+                    print("[INFO] Cancellation requested. Stopping matriz exchange.")
                     return
                 
                 if len(transformed_data) == 0:
                     print("⚠️ No data to send to destiny server after transformation, skipping sending data.")
                     continue
                 
-                send_data_to_destiny(data={'trackedEntities': transformed_data}, execution_config=execution_config, client=destiny_client)
+                send_data_to_destiny(data={'events': transformed_data}, execution_config=execution_config, client=destiny_client)
 
 
 if __name__ == '__main__':

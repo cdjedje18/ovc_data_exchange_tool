@@ -15,8 +15,10 @@ def execute():
     with open("mappings/data_mappings/Mapemanto_test.json", "r", encoding="utf8") as f:
         data_mapping = json.loads(f.read())
 
+    event_program = {"name":"Matriz de Referência aos Programas","programType":"WITHOUT_REGISTRATION","id":"coLY2kfLmlC"}
+
     execution_config = data_exchange.DataExchangeExecutionConfig(
-        program=harmonize_config['otherPrograms'][0],
+        program=event_program,
         page_size=10,
         variable_mapping=None,
         orgunit_mapping=None,
