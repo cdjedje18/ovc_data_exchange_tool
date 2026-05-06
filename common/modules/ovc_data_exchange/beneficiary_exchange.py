@@ -112,9 +112,10 @@ def download_family_data_tracked_entities(endpoint: str, fields: str, page: int,
         params.update({"ouMode": "ACCESSIBLE"})
     
     results = destiny_client.get(f"/api/tracker/{endpoint}.json", params=params)
-    # print(type(results))
+    # print(type(results), results)
 
-    family_data.extend(results.get(TRACKER_ENDPOINT, constants.INSTANCES))
+    family_data.extend(results.get(TRACKER_ENDPOINT, []) if TRACKER_ENDPOINT in results else results.get(constants.INSTANCES, []))
+    # print(family_data)
 
     family_ids = [family.get("trackedEntity") for family in family_data]
 
