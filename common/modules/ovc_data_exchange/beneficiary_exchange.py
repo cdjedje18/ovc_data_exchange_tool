@@ -219,10 +219,10 @@ def send_data_to_destiny(data: dict, execution_config: OvcDataExchangeExecutionC
         return results
     
     except DHIS2HTTPError as e:
-        # print(e.payload)
         print("❌ Error sending data to destiny server")
+        print(e.payload)
         error_details = [report.get("message") for report in e.payload.get('validationReport', {}).get("errorReports", [])]
-        print(error_details)
+        # print(error_details)
         # print(f"❌ Import summary: {e.payload['stats']}", *error_details)
         return None
 
