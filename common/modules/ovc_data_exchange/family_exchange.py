@@ -174,7 +174,7 @@ def execute(execution_config: OvcDataExchangeExecutionConfig, cancel_event=None)
     origin_client = create_client(config=origin_server)
     destiny_client = create_client(config=destiny_server)
 
-    program_details = get_program_details(program=execution_config.beneficiary_program, client=destiny_client)
+    program_details = get_program_details(program=execution_config.family_program, client=destiny_client)
 
     orgunits = execution_config.orgunits if execution_config.orgunits is not None else [{ "id": "ALL" , "name": "All orgunits"}]
 
@@ -218,6 +218,9 @@ def execute(execution_config: OvcDataExchangeExecutionConfig, cancel_event=None)
 
                 transformed_data = transform_data(valid_tracked_entities=valid_data, execution_config=execution_config, program_details=program_details)
                 print(f"Transformed {len(transformed_data)} tracked entities.")
+
+                with open(f"{folder_tracker}/{page}_transformed.txt", "w", encoding="utf8") as f:
+                    f.write(json.dumps(transformed_data))
 
                 if _is_cancelled(cancel_event):
                     print("[INFO] Cancellation requested. Stopping family exchange.")

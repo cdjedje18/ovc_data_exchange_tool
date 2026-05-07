@@ -345,6 +345,9 @@ def transform_tracker_payload(
     program_details: dict = None
 ) -> dict:
     
+    # with open("program_details.txt", "w", encoding="utf8") as f:
+    #     f.write(json.dumps(program_details))
+    
     data_mapping = execution_config.variable_mapping if execution_config.variable_mapping is not None else {}
 
     # if not data_mapping:
