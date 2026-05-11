@@ -312,7 +312,11 @@ def execute(execution_config: OvcDataExchangeExecutionConfig, cancel_event=None)
                     f.write(json.dumps(transformed_data))
 
                     
-                send_data_to_destiny(data={'trackedEntities': transformed_data}, execution_config=execution_config, client=destiny_client)
+                send_result = send_data_to_destiny(data={'trackedEntities': transformed_data}, execution_config=execution_config, client=destiny_client)
+
+                if send_result is not None:
+                    with open(f"{folder_tracker}/{page}.txt", "w", encoding="utf8") as f:
+                        f.write(json.dumps(send_result))
 
 
 if __name__ == '__main__':
