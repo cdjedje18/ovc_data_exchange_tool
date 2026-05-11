@@ -14,6 +14,10 @@ from common.modules.mixins.DataExchangeExecutionConfig import DataExchangeExecut
 import requests
 
 
+def _is_cancelled(cancel_event=None) -> bool:
+    return bool(cancel_event and cancel_event.is_set())
+
+
 def get_logger():
     logger = utils.set_logger(log_file="extract_data.log")
     return logger
@@ -174,11 +178,11 @@ def send_data_to_destiny(data: dict, execution_config: DataExchangeExecutionConf
         return results
     
     except DHIS2HTTPError as e:
-        # print(e.payload)
         print("❌ Error sending data to destiny server")
+        print(e.payload)
         error_details = [report.get("message") for report in e.payload.get('validationReport', {}).get("errorReports", [])]
         # print(error_details)
-        print(f"❌ Import summary: {e.payload['stats']}", *error_details)
+        # print(f"❌ Import summary: {e.payload['stats']}", *error_details)
         return None
     
 
@@ -197,7 +201,7 @@ def reset_data_folder(program_id: str):
 
 
 
-def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_client: DHIS2Client, destiny_client: DHIS2Client, program_details: dict):
+def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_client: DHIS2Client, destiny_client: DHIS2Client, program_details: dict, cancel_event=None):
 
     endpoint_tracker = generate_endpoint(execution_config.program)
     fields_tracker = generate_fields(program=execution_config.program, execution_config=execution_config)
@@ -208,6 +212,9 @@ def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_
     orgunits = execution_config.orgunits if execution_config.orgunits is not None else [{ "id": "ALL" , "name": "All orgunits"}]
 
     for orgunit in orgunits:
+        if _is_cancelled(cancel_event):
+            print("[INFO] Cancellation requested. Stopping tracker processing.")
+            return
 
         folder_tracker = f"control/data_exchange/{execution_config.program['id']}/data/{orgunit['id']}/{execution_config.page_size}"
         os.makedirs(folder_tracker, exist_ok=True)
@@ -216,6 +223,10 @@ def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_
 
         if program_pager_tracker['pageCount'] > 0:
             for page in range(1, program_pager_tracker['pageCount'] + 1):
+                if _is_cancelled(cancel_event):
+                    print("[INFO] Cancellation requested. Stopping tracker processing.")
+                    return
+
                 if os.path.exists(f"{folder_tracker}/{page}.txt"):
                     print(f"⚠️ Data for {execution_config.program['name']} tracker page {page} already processed, skipping.")
                     continue
@@ -234,6 +245,10 @@ def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_
                 with open(f"{folder_tracker}/{page}_transformed.txt", "w", encoding="utf8") as f:
                     f.write(json.dumps(data_to_send))
 
+                if _is_cancelled(cancel_event):
+                    print("[INFO] Cancellation requested. Stopping tracker processing.")
+                    return
+
                 print(f"Sending tracked entities to destiny server for program {execution_config.program['name']} at {orgunit['name']} orgunit: page {page} / {program_pager_tracker['pageCount']}")
                 send_result = send_data_to_destiny(data=data_to_send, execution_config=execution_config, client=destiny_client)
                 print("\n")
@@ -246,7 +261,7 @@ def handle_tracked_entity(execution_config: DataExchangeExecutionConfig, origin_
     
 
 
-def handle_event(execution_config: DataExchangeExecutionConfig, origin_client: DHIS2Client, destiny_client: DHIS2Client, program_details: dict):
+def handle_event(execution_config: DataExchangeExecutionConfig, origin_client: DHIS2Client, destiny_client: DHIS2Client, program_details: dict, cancel_event=None):
 
     endpoint_event = constants.EVENT_ENDPOINT
     fields_event = generate_fields(program=execution_config.program, execution_config=execution_config)
@@ -256,6 +271,9 @@ def handle_event(execution_config: DataExchangeExecutionConfig, origin_client: D
     orgunits = execution_config.orgunits if execution_config.orgunits is not None else [{ "id": "ALL" , "name": "All orgunits"}]
 
     for orgunit in orgunits:
+        if _is_cancelled(cancel_event):
+            print("[INFO] Cancellation requested. Stopping event processing.")
+            return
 
         folder_event = f"control/data_exchange/{execution_config.program['id']}/data/{orgunit['id']}/{execution_config.page_size}"
         os.makedirs(folder_event, exist_ok=True)
@@ -264,6 +282,10 @@ def handle_event(execution_config: DataExchangeExecutionConfig, origin_client: D
 
         if program_pager_event['pageCount'] > 0:
             for page in range(1, program_pager_event['pageCount'] + 1):
+                if _is_cancelled(cancel_event):
+                    print("[INFO] Cancellation requested. Stopping event processing.")
+                    return
+
                 if os.path.exists(f"{folder_event}/{page}.txt"):
                     print(f"⚠️ Data for {execution_config.program['name']} event page {page} already processed, skipping.")
                     continue
@@ -275,6 +297,11 @@ def handle_event(execution_config: DataExchangeExecutionConfig, origin_client: D
 
                 data_to_transform =  data[endpoint_event] if endpoint_event in data else data[constants.INSTANCES]
                 data_to_send = { "events": handle_transfomation.transform_event_payload(source_payload=data_to_transform, execution_config=execution_config, orgunit_mapping_hash=orgunit_mapping_dict, program_details=program_details)}
+
+                if _is_cancelled(cancel_event):
+                    print("[INFO] Cancellation requested. Stopping event processing.")
+                    return
+
                 print(f"Sending events to destiny server for program {execution_config.program['name']} at {orgunit['name']} orgunit: page {page} / {program_pager_event['pageCount']}")
                 
                 send_result = send_data_to_destiny(data=data_to_send, execution_config=execution_config, client=destiny_client)
@@ -289,13 +316,17 @@ def handle_event(execution_config: DataExchangeExecutionConfig, origin_client: D
 
 
 
-def execute(execution_config: DataExchangeExecutionConfig):
+def execute(execution_config: DataExchangeExecutionConfig, cancel_event=None):
 
     # print(execution_config.orgunits)
 
     origin_client = create_client(config=utils.get_config_file()['originServer'])
 
     destiny_client = create_client(config=utils.get_config_file()['destinyServer'])
+
+    if _is_cancelled(cancel_event):
+        print("[INFO] Cancellation requested. Exiting before execution starts.")
+        return
 
     program_details = get_program_details(program=execution_config.program, client=destiny_client)
 
@@ -304,10 +335,22 @@ def execute(execution_config: DataExchangeExecutionConfig):
 
     if execution_config.program['programType'] == constants.TRACKER_PROGRAM_TYPE:
         # Tracker part
-        handle_tracked_entity(execution_config=execution_config, origin_client=origin_client, destiny_client=destiny_client, program_details=program_details)
+        handle_tracked_entity(
+            execution_config=execution_config,
+            origin_client=origin_client,
+            destiny_client=destiny_client,
+            program_details=program_details,
+            cancel_event=cancel_event,
+        )
         
     if execution_config.program['programType'] == constants.EVENT_PROGRAM_TYPE:
-        handle_event(execution_config=execution_config, origin_client=origin_client, destiny_client=destiny_client, program_details=program_details)
+        handle_event(
+            execution_config=execution_config,
+            origin_client=origin_client,
+            destiny_client=destiny_client,
+            program_details=program_details,
+            cancel_event=cancel_event,
+        )
 
     
 
