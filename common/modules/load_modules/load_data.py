@@ -17,7 +17,8 @@ def create_client(config: dict):
         base_url=config['url'],
         username=config['username'],
         password=config['pass'],
-        verify_ssl=False
+        verify_ssl=False,
+        timeout=60
     )
     return client
 
