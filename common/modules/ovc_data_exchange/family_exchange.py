@@ -230,7 +230,11 @@ def execute(execution_config: OvcDataExchangeExecutionConfig, cancel_event=None)
                     print("⚠️ No data to send to destiny server after transformation, skipping sending data.")
                     continue
                 
-                send_data_to_destiny(data={'trackedEntities': transformed_data}, execution_config=execution_config, client=destiny_client)
+                send_result = send_data_to_destiny(data={'trackedEntities': transformed_data}, execution_config=execution_config, client=destiny_client)
+
+                if send_result is not None:
+                    with open(f"{folder_tracker}/{page}.txt", "w", encoding="utf8") as f:
+                        f.write(json.dumps(send_result))
 
 
 if __name__ == '__main__':
