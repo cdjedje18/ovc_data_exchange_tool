@@ -329,13 +329,13 @@ def execute(execution_config: OvcDataExchangeExecutionConfig, cancel_event=None)
                 print(f"Filtering valid families for {orgunit['name']} orgunit based on beneficiaries' waiver attribute '{execution_config.beneficiary_waiver_attribute}'...")
 
                 valid_data = get_valid_families(families_tracked_entities=non_waiver_families_tracker_entities, org_unit=orgunit['id'], client=origin_client, execution_config=execution_config)
-                print(f"✅ Filtered {len(valid_data)} tracked entities based on waiver attribute '{execution_config.beneficiary_waiver_attribute}'.")
+                print(f"✅ Filtered {len(valid_data)} families based on beneficiaries' waiver attribute '{execution_config.beneficiary_waiver_attribute}'.")
 
                 with open(f"{folder_tracker}/{page}_valid.txt", "w", encoding="utf8") as f:
                     f.write(json.dumps(valid_data))
 
                 transformed_data = transform_data(valid_tracked_entities=valid_data, execution_config=execution_config, program_details=program_details)
-                print(f"Transformed {len(transformed_data)} tracked entities.")
+                print(f"Transformed {len(transformed_data)} families.")
 
                 with open(f"{folder_tracker}/{page}_transformed.txt", "w", encoding="utf8") as f:
                     f.write(json.dumps(transformed_data))
