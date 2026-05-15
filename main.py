@@ -9,6 +9,7 @@ from ui.relationship_mapping_ui import create_relationship_mapping_frame
 from ui.mappings_hub import create_mappings_hub_frame
 from ui.ovc_data_exchange import create_ovc_data_exchange_frame
 from ui.ovc_non_waiver_families import create_ovc_non_waiver_families_frame
+from ui.ovc_non_beneficiaries import create_ovc_non_waiver_families_frame as create_ovc_non_beneficiaries_frame
 from ui.ovc_matriz_data_exchange import create_ovc_matriz_data_exchange_frame
 
 
@@ -34,6 +35,7 @@ class App(ctk.CTk):
         self.frames["mappings_hub"] = create_mappings_hub_frame(self, self.show_frame)
         self.frames["ovc_data_exchange"] = create_ovc_data_exchange_frame(self, self.show_frame)
         self.frames["ovc_non_waiver_families"] = create_ovc_non_waiver_families_frame(self, self.show_frame)
+        self.frames["ovc_non_beneficiaries"] = create_ovc_non_beneficiaries_frame(self, self.show_frame)
         self.frames["ovc_matriz_data_exchange"] = create_ovc_matriz_data_exchange_frame(self, self.show_frame)
         self.frames["data_mapping"] = create_data_mapping_frame(self, self.show_frame)
         self.frames["location_mapping"] = create_location_mapping_frame(self, self.show_frame)
