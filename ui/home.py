@@ -28,6 +28,8 @@ def create_home_frame(parent, show_frame):
     make_card("Harmonization", "harmonization")
     make_card("Data Exchange", "data_exchange")
     make_card("OVC Data Exchange", "ovc_data_exchange")
+    make_card("OVC Non-Waiver Families", "ovc_non_waiver_families")
+    make_card("OVC Non-Beneficiaries", "ovc_non_beneficiaries")
     make_card("Matriz Data Exchange", "ovc_matriz_data_exchange")
 
     return frame
