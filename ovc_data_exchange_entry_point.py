@@ -1,7 +1,7 @@
 import json
 
 from common.modules.mixins.DataExchangeExecutionConfig import MatrizDataExchangeExecutionConfig, OvcDataExchangeExecutionConfig
-from common.modules.ovc_data_exchange import beneficiary_exchange, family_exchange, matrix_exchange
+from common.modules.ovc_data_exchange import beneficiary_exchange, family_exchange, matrix_exchange, non_beneficiary_exchange, non_family_exchange
 from common.utils import utils
 
 
@@ -27,11 +27,14 @@ def execute():
         orgunit_mapping=None,
         relationship_mapping=relationship_mapping,
         async_import=False,
-        orgunits=[{"id": "xQhK3CB3nVw", "name": "CIDADE DE INHAMBANE"}],
+        orgunits=[{"id": "DYarrR7rDy3", "name": "ANCUABE"}],
     )
 
-    family_exchange.execute(execution_config=execution_config)
+    non_beneficiary_exchange.execute(execution_config=execution_config)
+    # non_family_exchange.execute(execution_config=execution_config)
+    # family_exchange.execute(execution_config=execution_config)
     # beneficiary_exchange.execute(execution_config=execution_config)
+    
 
 
 

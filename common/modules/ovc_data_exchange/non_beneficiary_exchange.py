@@ -1,0 +1,294 @@
+from copy import deepcopy
+import json
+import os
+from typing import Any
+
+from dhis2_client import DHIS2Client
+from dhis2_client.errors import DHIS2HTTPError
+
+from common import constants
+from common.modules.data_exchange import handle_transfomation
+from common.modules.load_modules.load_data import create_client
+from common.modules.mixins.DataExchangeExecutionConfig import DataExchangeExecutionConfig, OvcDataExchangeExecutionConfig
+from common.utils import utils
+import more_itertools
+
+
+TRACKER_ENDPOINT = "trackedEntities"
+TRACKER_FIELDS = "*,!createdBy,!updatedBy,relationships[*],enrollments[*,events[*,!createdBy,!updatedBy],!attributes]"
+
+FAMILY_FIELDS = "trackedEntity,relationships[*]"
+RELATIONSHIP_TYPES = ["Z3p3fp4xTLU", "IBtE6ocVkN0"]
+BENEFICIARY_PROGRAM_ID = "pVgO58r40Au"
+
+
+
+
+def _is_truthy(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    return str(value).strip().lower() in {"true", "1", "yes", "sim"}
+
+
+def _is_cancelled(cancel_event=None) -> bool:
+    return bool(cancel_event and cancel_event.is_set())
+
+
+def get_total_data(program:str, endpoint:str, orgunit:str, page_size:int, client: DHIS2Client):
+
+    results = client.get(f"/api/tracker/{endpoint}.json", params={"totalPages": True, "program": program, "orgUnit": orgunit, "ouMode": "DESCENDANTS", "pageSize": page_size, "fields": "created"})
+    # logger.info(f"Downloaded {len(results['organisationUnits'])} organisation units")
+    return results
+
+
+
+def get_program_details(program: dict, client: DHIS2Client):
+
+    params = dict()
+
+    if program['programType'] == constants.TRACKER_PROGRAM_TYPE:
+        params = {"fields": "id,name,programTrackedEntityAttributes[trackedEntityAttribute[id,name,valueType]],programStages[id,name,programStageDataElements[dataElement[id,name,valueType]]]"}
+    if program['programType'] == constants.EVENT_PROGRAM_TYPE:
+        params = {"fields": "id,name,programStages[id,name,programStageDataElements[dataElement[id,name,valueType]]]"}
+    
+    program_data = client.get(f"/api/programs/{program['id']}", params=params)
+
+    program_stages_data = dict()
+    for stage in program_data.get("programStages", []):
+        stage_data_element_list = dict()
+
+        for stage_data_element in stage.get("programStageDataElements", []):
+            data_element_id = stage_data_element['dataElement']['id']
+            stage_data_element_list[data_element_id] = stage_data_element['dataElement']
+
+        program_stages_data[stage['id']] = stage_data_element_list
+   
+    program_details = {
+        "id": program_data['id'],
+        "attributes":  {attribute['trackedEntityAttribute']['id']: attribute['trackedEntityAttribute'] for attribute in program_data.get("programTrackedEntityAttributes", [])} if program['programType'] == constants.TRACKER_PROGRAM_TYPE else None,
+        "programStages": program_stages_data
+    }
+
+    return program_details
+
+
+
+def downloading_data_tracked_entities(endpoint: str, fields: str, page: int, execution_config: OvcDataExchangeExecutionConfig, orgunit: str | None, client: DHIS2Client = None) -> dict:
+
+    # logger = get_logger()
+    # logging.info(f"Download TEIs")
+
+    params = {"program": execution_config.beneficiary_program['id'], "page": page, "fields": fields, "pageSize": execution_config.page_size}
+    if orgunit is not None and orgunit != "ALL":
+        params.update({ "ouMode": "DESCENDANTS", "orgUnit": orgunit})
+    else:
+        params.update({"ouMode": "ACCESSIBLE"})
+    
+    results = client.get(f"/api/tracker/{endpoint}.json", params=params)
+    # print(type(results))
+    return results
+
+
+
+def custom_data(tracked_entities:list):
+
+
+    custom_data = []
+    for tracked_entity in tracked_entities:
+        custom_data.append({
+            **tracked_entity,
+            'enrollments': [enrollment for enrollment in tracked_entity.get("enrollments", []) if enrollment.get("program") == BENEFICIARY_PROGRAM_ID]
+        })
+
+    return custom_data
+
+
+def get_valid_beneficiary_teis(tracked_entities: list[dict], relationship_types: list[str]):
+
+    valid_tei = []
+
+    for tracked_entity in tracked_entities:
+        relationships = tracked_entity.get("relationships", [])
+        valid = True
+        for relationship in relationships:
+            if relationship.get("relationshipType") in relationship_types:
+                valid = False
+                break
+                
+        if valid is True:
+            valid_tei.append(tracked_entity)
+
+    return valid_tei
+
+
+
+def filter_data(tracker_entities: list[dict], waiver_attribute: str) -> list[dict]:
+    valid_data: list[dict] = []
+
+    for tracked_entity in tracker_entities:
+        waiver_attribute_value = None
+        for attribute in tracked_entity.get("attributes", []):
+            if attribute.get("attribute") == waiver_attribute:
+                waiver_attribute_value = attribute
+                break
+
+        if waiver_attribute_value is None:
+            continue
+
+        if _is_truthy(waiver_attribute_value.get("value")):
+            valid_data.append(tracked_entity)
+
+    return valid_data
+
+
+def transform_data(valid_tracked_entities: list[dict], execution_config: OvcDataExchangeExecutionConfig, program_details: dict) -> list[dict]:
+    # if not execution_config.variable_mapping:
+    #     return valid_tracked_entities
+
+    bridge_config = DataExchangeExecutionConfig(
+        program=execution_config.beneficiary_program,
+        page_size=execution_config.page_size,
+        async_import=execution_config.async_import,
+        include_relationships=False,
+        variable_mapping=execution_config.variable_mapping,
+        orgunit_mapping=execution_config.orgunit_mapping,
+        relationship_mapping=execution_config.relationship_mapping,
+        orgunits=execution_config.orgunits,
+    )
+
+    orgunit_mapping_hash = None
+    if execution_config.orgunit_mapping and execution_config.orgunit_mapping.get("mappings"):
+        orgunit_mapping_hash = {
+            item["sourceOrgUnit"]: item["targetOrgUnit"]
+            for item in execution_config.orgunit_mapping.get("mappings", [])
+            if item.get("sourceOrgUnit") and item.get("targetOrgUnit")
+        }
+
+    relationship_mapping_hash = None
+    if execution_config.relationship_mapping and execution_config.relationship_mapping.get("mappings"):
+        relationship_mapping_hash = {
+            item["source"]: item["target"]
+            for item in execution_config.relationship_mapping.get("mappings", [])
+            if item.get("source") and item.get("target")
+        }
+
+    return handle_transfomation.transform_tracker_payload(
+        source_payload=deepcopy(valid_tracked_entities),
+        execution_config=bridge_config,
+        orgunit_mapping_hash=orgunit_mapping_hash,
+        relationship_mapping_hash=relationship_mapping_hash,
+        program_details=program_details,
+    )
+
+
+def send_data_to_destiny(data: dict, execution_config: OvcDataExchangeExecutionConfig, client: DHIS2Client = None):
+
+    try:
+        # print(json.dumps(data))
+        results = client.post(f"/api/tracker.json", json=data, params={"async": execution_config.async_import, "skipRuleEngine": True, "validationMode": "SKIP"})
+        print(f"✅ Import summary: {results['stats']}")
+        return results
+    
+    except DHIS2HTTPError as e:
+        print("❌ Error sending data to destiny server")
+        print(e.payload)
+        error_details = [report.get("message") for report in e.payload.get('validationReport', {}).get("errorReports", [])]
+        # print(error_details)
+        # print(f"❌ Import summary: {e.payload['stats']}", *error_details)
+        return None
+
+
+def execute(execution_config: OvcDataExchangeExecutionConfig, cancel_event=None):
+
+    print(f"Starting Non Beneficiary Data Exchange for program {execution_config.beneficiary_program['name']} with page size {execution_config.page_size}...")
+
+    endpoint_tracker = TRACKER_ENDPOINT
+
+    config = utils.get_config_file()
+    origin_server = config.get("originServer")
+    destiny_server = config.get("destinyServer")
+
+    if not origin_server or not destiny_server:
+        raise KeyError("Both originServer and destinyServer must exist in config file")
+
+    origin_client = create_client(config=origin_server)
+    destiny_client = create_client(config=destiny_server)
+
+    program_details = get_program_details(program=execution_config.beneficiary_program, client=destiny_client)
+
+    # with open("program_details.json", "w", encoding="utf8") as f:
+    #     f.write(json.dumps(program_details))
+
+    orgunits = execution_config.orgunits if execution_config.orgunits is not None else [{ "id": "ALL" , "name": "All orgunits"}]
+    
+    for orgunit in orgunits:
+        if _is_cancelled(cancel_event):
+            print("[INFO] Cancellation requested. Stopping beneficiary exchange.")
+            return
+
+        folder_tracker = f"control/ovc_data_exchange/non_beneficiary_data/data/{orgunit['id']}/{execution_config.page_size}"
+        os.makedirs(folder_tracker, exist_ok=True)
+
+        program_pager_tracker = get_total_data(program=execution_config.beneficiary_program['id'], endpoint=endpoint_tracker, orgunit=orgunit['id'], page_size=execution_config.page_size, client=origin_client)
+
+        if program_pager_tracker['pageCount'] > 0:
+
+            for page in range(1, program_pager_tracker['pageCount'] + 1):
+                if _is_cancelled(cancel_event):
+                    print("[INFO] Cancellation requested. Stopping beneficiary exchange.")
+                    return
+
+                if os.path.exists(f"{folder_tracker}/{page}.txt"):
+                    print(f"⚠️ Data for {execution_config.beneficiary_program['name']} tracker page {page} already processed, skipping.")
+                    continue
+            
+                print(f"Downloading data for Beneficiary program {execution_config.beneficiary_program['name']} at {orgunit['name']} orgunit: page {page} / {program_pager_tracker['pageCount']}")
+                beneficiary_tracker_entities = downloading_data_tracked_entities(endpoint=endpoint_tracker, fields=TRACKER_FIELDS, page=page, execution_config=execution_config, orgunit=orgunit['id'], client=origin_client)
+                print(f"✅ {len(beneficiary_tracker_entities[endpoint_tracker]) if endpoint_tracker in beneficiary_tracker_entities else len(beneficiary_tracker_entities[constants.INSTANCES])} Data downloaded for {orgunit['name']} orgunit")
+
+                with open(f"{folder_tracker}/{page}_origin.txt", "w", encoding="utf8") as f:
+                    f.write(json.dumps(beneficiary_tracker_entities))
+
+                beneficiary_tracker_entities = beneficiary_tracker_entities.get(endpoint_tracker, beneficiary_tracker_entities.get(constants.INSTANCES, []))
+                beneficiary_tracker_entities = custom_data(beneficiary_tracker_entities)
+
+                with open(f"{folder_tracker}/{page}_custom.txt", "w", encoding="utf8") as f:
+                    f.write(json.dumps(beneficiary_tracker_entities))
+
+                
+                valid_beneficiaries = get_valid_beneficiary_teis(beneficiary_tracker_entities, RELATIONSHIP_TYPES)
+                print(f"✅ {len(valid_beneficiaries)} valid beneficiaries after filtering based on relationships with types {RELATIONSHIP_TYPES}.")
+
+                print(f"Filtering data based on waiver attribute '{execution_config.beneficiary_waiver_attribute}'...")
+
+                valid_data = filter_data(tracker_entities=valid_beneficiaries, waiver_attribute=execution_config.beneficiary_waiver_attribute)
+                print(f"✅ Filtered {len(valid_data)} tracked entities based on waiver attribute '{execution_config.beneficiary_waiver_attribute}'.")
+
+                with open(f"{folder_tracker}/{page}_valid.txt", "w", encoding="utf8") as f:
+                    f.write(json.dumps(valid_data))
+
+                transformed_data = transform_data(valid_tracked_entities=valid_data, execution_config=execution_config, program_details=program_details)
+                print(f"Transformed {len(transformed_data)} tracked entities.")
+
+                if _is_cancelled(cancel_event):
+                    print("[INFO] Cancellation requested. Stopping beneficiary exchange.")
+                    return
+
+                if len(transformed_data) == 0:
+                    print("⚠️ No data to send to destiny server after transformation, skipping sending data.")
+                    continue
+                with open(f"{folder_tracker}/{page}_transformed.txt", "w", encoding="utf8") as f:
+                    f.write(json.dumps(transformed_data))
+
+                    
+                send_result = send_data_to_destiny(data={'trackedEntities': transformed_data}, execution_config=execution_config, client=destiny_client)
+
+                if send_result is not None:
+                    with open(f"{folder_tracker}/{page}.txt", "w", encoding="utf8") as f:
+                        f.write(json.dumps(send_result))
+
+
+if __name__ == '__main__':
+    raise SystemExit("Please call execute(execution_config) with an OvcDataExchangeExecutionConfig instance.")
